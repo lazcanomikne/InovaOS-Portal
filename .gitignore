@@ -1,0 +1,31 @@
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+
+# Node dependencies
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Configuracion de despliegue: contiene la direccion del backend, que es
+# infraestructura y no debe publicarse. Ver README para reconstruirla.
+vercel.json
+
+# VSC
+.history

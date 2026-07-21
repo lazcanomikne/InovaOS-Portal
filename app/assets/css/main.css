@@ -1,0 +1,328 @@
+@import "tailwindcss" theme(static);
+@import "@nuxt/ui";
+
+/* Scroll de las páginas del dashboard.
+   UDashboardGroup es `fixed inset-0 overflow-hidden`, así que la página no
+   scrollea sola: el scroll ocurre dentro del body del panel. Ese body es un
+   elemento flex y, sin `min-height: 0`, no puede encogerse por debajo de su
+   contenido, de modo que su `overflow-y-auto` nunca se activa y las listas
+   largas quedan recortadas sin barra de scroll.
+   Se aplica por atributo (no por clase) para no depender de cómo el tema
+   fusione las clases de utilidad. */
+[data-slot="body"] {
+  min-height: 0;
+}
+
+/* ===== Barra de título con el color de la empresa =====
+   La barra de título es la única superficie teñida: el sidebar conserva el
+   fondo neutro del template y muestra el logo de la empresa. `--empresa-color`
+   la fija el layout según la empresa activa. */
+:root {
+  --empresa-color: #0096D5;
+  /* Barra más delgada que el valor por omisión del template (4rem). Alinea
+     también el encabezado del sidebar, que usa la misma variable. */
+  --ui-header-height: 3rem;
+}
+
+.empresa-barra-titulo {
+  /* Color sólido, sin transparencia. */
+  background-color: var(--empresa-color);
+  border-bottom: none;
+  /* El z-index es imprescindible: sin él la sombra del pseudo-elemento queda
+     por debajo del contenido de la página y no se ve. */
+  position: relative;
+  z-index: 20;
+}
+
+/* Mismo relieve que el sidebar pero girado 90 grados: el degradado cae hacia
+   abajo y la máscara corre en horizontal, de modo que la sombra nace fina en
+   los extremos, alcanza su grosor máximo al centro y se cierra igual.
+   Es más profunda que la del sidebar (46px contra 34px) porque la barra es la
+   superficie superior y necesita despegarse más del contenido. */
+.empresa-barra-titulo::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 46px;
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      to bottom,
+      rgb(0 0 0 / 0.16) 0%,
+      rgb(0 0 0 / 0.06) 30%,
+      transparent 70%
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--empresa-color) 45%, transparent) 0%,
+      color-mix(in srgb, var(--empresa-color) 16%, transparent) 35%,
+      transparent 78%
+    );
+
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    rgb(0 0 0 / 0.35) 12%,
+    #000 50%,
+    rgb(0 0 0 / 0.35) 88%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    rgb(0 0 0 / 0.35) 12%,
+    #000 50%,
+    rgb(0 0 0 / 0.35) 88%,
+    transparent 100%
+  );
+}
+
+/* Relieve del sidebar, proyectado hacia el contenido.
+   No se usa `box-shadow` porque tiene grosor uniforme en todo el borde: aquí la
+   sombra debe nacer fina arriba, alcanzar su ancho máximo al centro y cerrarse
+   igual abajo. Eso exige un degradado con máscara vertical, así que se dibuja
+   en un pseudo-elemento pegado al canto derecho. */
+.empresa-sombra-lateral {
+  position: relative;
+  z-index: 20;
+}
+
+.empresa-sombra-lateral::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: 34px;
+  pointer-events: none;
+
+  /* Dos degradados superpuestos: el de marca aporta el tinte y el neutro la
+     densidad. Sólo con el de color la sombra resultaba casi imperceptible
+     sobre fondo claro; el neutro es el que la hace legible sin endurecerla. */
+  background:
+    linear-gradient(
+      to right,
+      rgb(0 0 0 / 0.16) 0%,
+      rgb(0 0 0 / 0.06) 30%,
+      transparent 70%
+    ),
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--empresa-color) 45%, transparent) 0%,
+      color-mix(in srgb, var(--empresa-color) 16%, transparent) 35%,
+      transparent 78%
+    );
+
+  /* Máscara vertical: es la que hace que la sombra se abra y se cierre.
+     Transparente en los extremos, opaca al centro. */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgb(0 0 0 / 0.35) 12%,
+    #000 50%,
+    rgb(0 0 0 / 0.35) 88%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgb(0 0 0 / 0.35) 12%,
+    #000 50%,
+    rgb(0 0 0 / 0.35) 88%,
+    transparent 100%
+  );
+}
+
+/* Sólo los controles SIN fondo propio se pasan a blanco. Pintar todos los
+   botones rompía los que traen fondo claro (el texto blanco desaparecía sobre
+   el blanco del botón), así que se limita a los de fondo transparente. */
+.empresa-barra-titulo button.bg-transparent {
+  color: #fff;
+}
+
+.empresa-barra-titulo button.bg-transparent:hover {
+  background-color: rgb(255 255 255 / 0.15);
+}
+
+/* Los hijos directos del body no deben encogerse.
+   El body es `flex flex-col` y los elementos flex se encogen por defecto
+   (flex-shrink: 1). Una UCard con una tabla larga se comprimía a la altura
+   disponible en lugar de conservar la suya; como UCard trae `overflow-hidden`,
+   el contenido sobrante quedaba recortado e inalcanzable. Y al caber todo
+   "justo", el body no desbordaba y nunca aparecía la barra de scroll.
+   Se excluyen los hijos que sí deben llenar el espacio (chat, por ejemplo). */
+[data-slot="body"] > *:not(.flex-1):not(.grow):not(.h-full) {
+  flex-shrink: 0;
+}
+
+@theme static {
+  --font-sans: 'Public Sans', sans-serif;
+
+  /* ===== Paleta de marca Inovatech =====
+     Azul principal #0096D5 (confianza, solidez tecnológica) como color primario,
+     y gris oscuro #2C3038 (estructura, contraste) como neutro. Se declaran
+     escalas completas 50-950 para que los componentes tengan de dónde tomar
+     hover, bordes y fondos, y para que el modo oscuro funcione correctamente.
+     El tono exacto de marca es el 500 del azul y el 800 del gris. */
+  --color-inovatech-50: #EBF7FD;
+  --color-inovatech-100: #D1EDFA;
+  --color-inovatech-200: #A3DBF5;
+  --color-inovatech-300: #6BC6EE;
+  --color-inovatech-400: #2FADE2;
+  --color-inovatech-500: #0096D5;  /* Azul principal de marca */
+  --color-inovatech-600: #007BB2;
+  --color-inovatech-700: #01628F;
+  --color-inovatech-800: #075174;
+  --color-inovatech-900: #0B4360;
+  --color-inovatech-950: #062A3F;
+
+  --color-ink-50: #F6F7F8;
+  --color-ink-100: #ECEEF0;
+  --color-ink-200: #D6DAE0;
+  --color-ink-300: #B3B9C3;
+  --color-ink-400: #8A92A1;
+  --color-ink-500: #6C7484;
+  --color-ink-600: #565D6B;
+  --color-ink-700: #464C57;
+  --color-ink-800: #2C3038;  /* Gris oscuro de marca */
+  --color-ink-900: #23262D;
+  --color-ink-950: #15171B;
+
+  /* ===== Paleta categórica =====
+     Sirve para distinguir grupos de datos (por ejemplo: mismo color = misma
+     oportunidad). NO son colores semánticos y no deben usarse para estados.
+     Parten del azul de marca y recorren el círculo cromático manteniendo
+     saturación y luminosidad parejas, de modo que se distinguen entre sí sin
+     competir con la identidad ni verse estridentes. */
+  --color-cat-1: #0096D5;
+  --color-cat-2: #4C5BC9;
+  --color-cat-3: #8B5CC7;
+  --color-cat-4: #C25E9B;
+  --color-cat-5: #C2705E;
+  --color-cat-6: #9A9A3F;
+  --color-cat-7: #3FA05C;
+  --color-cat-8: #2FA0A0;
+
+  --color-green-50: #EFFDF5;
+  --color-green-100: #D9FBE8;
+  --color-green-200: #B3F5D1;
+  --color-green-300: #75EDAE;
+  --color-green-400: #00DC82;
+  --color-green-500: #00C16A;
+  --color-green-600: #00A155;
+  --color-green-700: #007F45;
+  --color-green-800: #016538;
+  --color-green-900: #0A5331;
+  --color-green-950: #052E16;
+}
+
+/* --- Fotos de vehículo ----------------------------------------------------
+   Las fotos vienen de catálogo, casi todas recortadas sobre fondo blanco de
+   estudio, y unas pocas en PNG con transparencia. Sobre un plato oscuro el
+   resultado es un recuadro blanco flotando en la tarjeta, así que el plato se
+   mantiene claro en ambos temas y sólo se atenúa en oscuro para que no
+   deslumbre junto al panel. El degradado sutil evita que se lea como un hueco
+   plano cuando la foto no cubre todo el ancho. */
+.foto-plato {
+  background: linear-gradient(160deg, #ffffff 0%, #e8ecf1 100%);
+}
+
+.dark .foto-plato {
+  background: linear-gradient(160deg, #c8cfd8 0%, #a3acb8 100%);
+}
+
+/* Marco del panel de foto en la ficha del vehículo. El degradado del color de
+   la empresa separa el panel de la banda, que es de ese mismo color, y la
+   sombra amplia lo despega del fondo para que se lea como el elemento
+   principal de la ficha. El relleno del contenedor hace de grosor del marco. */
+.foto-panel {
+  background: linear-gradient(145deg, var(--empresa-color) 0%, color-mix(in srgb, var(--empresa-color) 45%, #ffffff) 55%, var(--empresa-color) 100%);
+  box-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.45), 0 4px 10px -4px rgb(0 0 0 / 0.3);
+}
+
+/* Banda de la ficha: la foto va desenfocada y ampliada como ambiente, no como
+   imagen legible. Recortarla con object-cover dejaba medio vehículo fuera y,
+   al ser fondo blanco, el velo la volvía gris sucia. */
+.banda-foto {
+  filter: blur(18px) saturate(1.25);
+  transform: scale(1.25);
+}
+
+/* Velo de la banda: deja pasar apenas la foto desenfocada y fija el color de
+   la empresa como identidad de la ficha. Sin él, una foto de fondo blanco
+   dejaba la banda gris sucia y el texto encima sin contraste. */
+.banda-velo {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--empresa-color) 78%, transparent) 0%,
+    color-mix(in srgb, var(--empresa-color) 94%, #000000) 100%
+  );
+}
+
+/* --- Reloj del tablero de Consumibles --------------------------------------
+   Toma los mismos tokens que el resto del sistema: el color de la empresa para
+   las horas y los minutos -igual que la barra de título y el sidebar, así el
+   reloj también dice en qué empresa estás- y la escala `ink` para los
+   segundos, que pesan menos en la lectura.
+   La versión anterior usaba negros a mano que no salían de la paleta y
+   quedaban como un bloque ajeno sobre un layout de tarjetas claras. */
+.reloj {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.reloj-bloque {
+  font-variant-numeric: tabular-nums;  /* impide que los dígitos bailen de ancho */
+  font-weight: 600;
+  font-size: 1.75rem;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.625rem;
+  min-width: 2.75rem;
+  text-align: center;
+}
+
+.reloj-principal {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--empresa-color) 88%, #ffffff) 0%,
+    var(--empresa-color) 100%
+  );
+  color: #ffffff;
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--empresa-color) 60%, transparent);
+}
+
+.reloj-segundos {
+  background: var(--color-ink-100);
+  color: var(--color-ink-500);
+}
+
+.dark .reloj-segundos {
+  background: var(--color-ink-800);
+  color: var(--color-ink-300);
+}
+
+/* Los dos puntos parpadean una vez por segundo: es la señal de que el reloj
+   está vivo y no una hora congelada. */
+.reloj-dos-puntos {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--empresa-color) 55%, transparent);
+  padding: 0 0.1rem;
+  animation: reloj-latido 1s steps(1, end) infinite;
+}
+
+@keyframes reloj-latido {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.25; }
+}
+
+/* Quien pidió menos movimiento no necesita un parpadeo constante en pantalla. */
+@media (prefers-reduced-motion: reduce) {
+  .reloj-dos-puntos { animation: none; }
+}
