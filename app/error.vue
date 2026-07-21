@@ -20,7 +20,7 @@ const detalle = computed(() => {
 })
 
 useSeoMeta({
-  title: 'Portal Inovatech',
+  title: 'InovaOS',
   description: 'La página que buscas no existe o ha sido movida.'
 })
 

@@ -1,4 +1,4 @@
-// Portal Inovatech — configuración Nuxt
+// InovaOS — configuración Nuxt
 //
 // Modo SPA (ssr:false) a propósito: la sesión vive en localStorage y toda la
 // data se pide al backend existente con headers Authorization + X-Company.
@@ -31,14 +31,20 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: 'Portal Inovatech',
+      title: 'InovaOS',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
-        { name: 'theme-color', content: '#1B84FF' }
+        { name: 'theme-color', content: '#0096D5' }
       ],
+      // La marca es oscura, asi que se sirve una variante blanca para las
+      // barras de pestanas en tema oscuro; ahi la version oscura desaparece.
+      // El .ico queda de respaldo para navegadores que ignoran `media`.
       link: [
-        { rel: 'icon', href: '/favicon.ico' }
+        { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
+        { rel: 'icon', type: 'image/png', href: '/favicon-claro.png', media: '(prefers-color-scheme: light)' },
+        { rel: 'icon', type: 'image/png', href: '/favicon-oscuro.png', media: '(prefers-color-scheme: dark)' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }
       ]
     }
   },
@@ -63,11 +69,11 @@ export default defineNuxtConfig({
     registerType: 'autoUpdate',
     includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
     manifest: {
-      name: 'Inovatech Portal',
-      short_name: 'Inovatech',
-      description: 'Portal CRM y Tesorería — Inovatech',
+      name: 'InovaOS',
+      short_name: 'InovaOS',
+      description: 'InovaOS — CRM, Tesorería, Recursos Humanos, Logística e Ingeniería',
       lang: 'es',
-      theme_color: '#1B84FF',
+      theme_color: '#0096D5',
       background_color: '#ffffff',
       display: 'standalone',
       scope: '/',

@@ -9,6 +9,10 @@ const authStore = useAuthStore()
 const email = ref('')
 const code = ref('')
 
+// El fondo del panel derecho es un video. Quien pidió menos animación en su
+// sistema ve el cuadro fijo en su lugar.
+const menosMovimiento = useMediaQuery('(prefers-reduced-motion: reduce)')
+
 const paso = computed(() => authStore.step)
 
 const enviarCodigo = async () => {
@@ -25,15 +29,21 @@ const verificarCodigo = async () => {
 
 <template>
   <div class="min-h-screen flex">
-    <!-- Panel del formulario -->
-    <div class="w-full lg:w-2/5 flex items-center justify-center p-8 bg-default">
+    <!-- Panel del formulario.
+         Monta sobre el panel derecho con `panel-login-relieve`: la sombra que
+         proyecta a su canto es lo que da la sensación de que está por encima. -->
+    <div class="panel-login-relieve w-full lg:w-2/5 flex items-center justify-center p-8 bg-default relative z-10">
       <div class="w-full max-w-md">
         <div class="mb-10">
-          <h1 class="text-4xl font-black text-primary">
-            Inovatech
-          </h1>
-          <p class="text-muted">
-            Portal Corporativo
+          <!-- El logotipo es negro, así que en tema oscuro se invierte para que
+               no desaparezca contra el fondo. -->
+          <img
+            src="/logo-inicio.png"
+            alt="Inovatech"
+            class="h-24 lg:h-28 w-auto mb-4 -ml-1 dark:invert"
+          >
+          <p class="text-lg font-semibold tracking-wide text-primary">
+            InovaOS
           </p>
         </div>
 
@@ -131,22 +141,61 @@ const verificarCodigo = async () => {
       </div>
     </div>
 
-    <!-- Panel decorativo (sólo escritorio) -->
-    <div class="hidden lg:flex lg:w-3/5 items-center justify-center bg-elevated/40 relative overflow-hidden">
-      <div class="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,var(--ui-primary)/8%,transparent_60%)]" />
-      <div class="relative text-center px-16">
-        <UIcon
-          name="solar:chart-square-bold-duotone"
-          class="size-40 text-primary/80 mx-auto"
-        />
-        <h2 class="text-4xl font-black text-highlighted mt-10 mb-4">
-          Eficiencia y Control
-        </h2>
-        <p class="text-lg text-muted max-w-xl mx-auto">
-          Gestiona todas tus operaciones corporativas en una sola plataforma
-          unificada con la mayor seguridad.
-        </p>
-      </div>
+    <!-- Panel decorativo (sólo escritorio).
+         Sólo la marca: la pieza ya trae su propio mensaje, así que cualquier
+         texto encima competiría con el del anuncio.
+         `object-cover` recorta en vez de deformar. -->
+    <div class="hidden lg:block lg:w-3/5 relative overflow-hidden bg-black">
+      <!-- Con `prefers-reduced-motion` se muestra el cuadro fijo en vez del
+           video. Un fondo en movimiento constante molesta a quien pidió menos
+           animación, y el navegador no lo respeta por su cuenta. -->
+      <img
+        v-if="menosMovimiento"
+        src="/fondo-inicio.webp"
+        alt="Inovatech, built for what's next"
+        class="absolute inset-0 w-full h-full object-cover"
+        style="object-position: 30% 45%"
+      >
+
+      <!-- `muted` y `playsinline` no son opcionales: sin ellos los navegadores
+           bloquean la reproducción automática, y en iOS el video se abriría a
+           pantalla completa. El `poster` es la imagen que ya teníamos, así que
+           se ve el encuadre correcto mientras carga en vez de un hueco negro.
+
+           `object-position` al 30% horizontal: el anuncio está a la izquierda
+           del cuadro y el panel es más alto que ancho, así que un recorte
+           centrado se lo comía por el borde. -->
+      <video
+        v-else
+        src="/fondo-inicio.mp4"
+        poster="/fondo-inicio.webp"
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="auto"
+        aria-label="Inovatech, built for what's next"
+        class="absolute inset-0 w-full h-full object-cover"
+        style="object-position: 30% 45%"
+      />
+
+      <!-- Iluminación nocturna. Tres capas que se suman:
+           el resplandor frío alrededor del anuncio, como si el panel iluminara
+           la escena; el enfriado general hacia las sombras; y la viñeta que
+           cierra las esquinas. Van sobre el video, no como filtro, para no
+           apagar el azul del anuncio, que es lo que debe brillar. -->
+      <div
+        class="pointer-events-none absolute inset-0 mix-blend-screen"
+        style="background: radial-gradient(ellipse 55% 45% at 34% 42%, rgba(0,150,213,0.30), transparent 70%)"
+      />
+      <div
+        class="pointer-events-none absolute inset-0"
+        style="background: linear-gradient(180deg, rgba(3,10,20,0.55) 0%, rgba(3,12,24,0.12) 42%, rgba(2,8,18,0.68) 100%)"
+      />
+      <div
+        class="pointer-events-none absolute inset-0"
+        style="background: radial-gradient(ellipse 80% 70% at 34% 45%, transparent 30%, rgba(1,6,14,0.62) 100%)"
+      />
     </div>
   </div>
 </template>

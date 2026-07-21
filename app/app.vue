@@ -10,7 +10,10 @@ useHead({
     { key: 'theme-color', name: 'theme-color', content: color }
   ],
   link: [
-    { rel: 'icon', href: '/favicon.ico' }
+    { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
+    { rel: 'icon', type: 'image/png', href: '/favicon-claro.png', media: '(prefers-color-scheme: light)' },
+    { rel: 'icon', type: 'image/png', href: '/favicon-oscuro.png', media: '(prefers-color-scheme: dark)' },
+    { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }
   ],
   htmlAttrs: {
     lang: 'es'
@@ -18,8 +21,8 @@ useHead({
 })
 
 useSeoMeta({
-  title: 'Portal Inovatech',
-  description: 'Portal corporativo de Inovatech: CRM, Tesorería, RH y operaciones.'
+  title: 'InovaOS',
+  description: 'InovaOS, el portal corporativo de Inovatech: CRM, Tesorería, Recursos Humanos, Logística e Ingeniería.'
 })
 </script>
 

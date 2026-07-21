@@ -326,3 +326,101 @@
 @media (prefers-reduced-motion: reduce) {
   .reloj-dos-puntos { animation: none; }
 }
+
+/* --- Relieve del panel de login --------------------------------------------
+   Hace que el panel del formulario se lea por encima del panel decorativo.
+   Misma técnica que el contorno del sidebar y no `box-shadow`: la sombra debe
+   nacer fina arriba, ensancharse al centro y cerrarse abajo, y `box-shadow`
+   tiene grosor uniforme en todo el borde.
+   El canto redondeado del lado derecho refuerza la idea de una placa encima de
+   otra; sin él la sombra sola se lee como una simple división. */
+.panel-login-relieve {
+  position: relative;
+  border-top-right-radius: 1.25rem;
+  border-bottom-right-radius: 1.25rem;
+}
+
+/* Resplandor de marca en las orillas del panel, hacia adentro. Es tenue a
+   proposito: debe insinuar el color de la empresa en los cantos sin teñir el
+   fondo blanco ni restarle contraste al formulario, que es lo que la pantalla
+   realmente tiene que hacer legible. */
+.panel-login-relieve::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  border-top-right-radius: inherit;
+  border-bottom-right-radius: inherit;
+
+  background:
+    linear-gradient(to left,  color-mix(in srgb, #0096D5 16%, transparent) 0%, transparent 22%),
+    linear-gradient(to right, color-mix(in srgb, #0096D5 10%, transparent) 0%, transparent 18%),
+    linear-gradient(to top,   color-mix(in srgb, #0096D5 10%, transparent) 0%, transparent 20%),
+    linear-gradient(to bottom, color-mix(in srgb, #0096D5 10%, transparent) 0%, transparent 20%);
+}
+
+/* El contenido va por encima del resplandor. */
+.panel-login-relieve > * {
+  position: relative;
+  z-index: 1;
+}
+
+.panel-login-relieve::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: 40px;
+  pointer-events: none;
+
+  /* Dos degradados superpuestos, igual que el contorno del sidebar: el neutro
+     aporta la densidad de la sombra y el de marca el tinte. Solo con el color
+     la sombra resultaba imperceptible; solo con el negro se veia apagada. */
+  background:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, #0096D5 30%, transparent) 0%,
+      color-mix(in srgb, #0096D5 12%, transparent) 34%,
+      transparent 78%
+    ),
+    linear-gradient(
+      to right,
+      rgb(0 0 0 / 0.32) 0%,
+      rgb(0 0 0 / 0.14) 28%,
+      rgb(0 0 0 / 0.04) 60%,
+      transparent 100%
+    );
+
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgb(0 0 0 / 0.35) 12%,
+    #000 50%,
+    rgb(0 0 0 / 0.35) 88%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgb(0 0 0 / 0.35) 12%,
+    #000 50%,
+    rgb(0 0 0 / 0.35) 88%,
+    transparent 100%
+  );
+}
+
+/* El redondeo y la sombra sólo tienen sentido cuando los dos paneles conviven.
+   Abajo de `lg` el formulario ocupa la pantalla completa y un canto redondeado
+   suelto se vería como un error. */
+@media (max-width: 1023px) {
+  .panel-login-relieve {
+    border-radius: 0;
+  }
+
+  .panel-login-relieve::before,
+  .panel-login-relieve::after {
+    display: none;
+  }
+}

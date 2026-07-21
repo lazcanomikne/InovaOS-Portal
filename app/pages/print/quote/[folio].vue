@@ -197,7 +197,7 @@ const formatDate = date => date ? new Date(date).toLocaleDateString('es-MX') : '
 
       <!-- Pie -->
       <div class="footer-note">
-        Documento generado desde Portal Inovatech · Folio SAP #{{ detail.header.Folio }}
+        Documento generado desde InovaOS · Folio SAP #{{ detail.header.Folio }}
       </div>
     </div>
   </div>
