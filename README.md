@@ -20,9 +20,9 @@ npm install
 npm run dev
 ```
 
-Las llamadas van a `/api`, que el proxy de Vite redirige a `http://localhost:7002`
-(ver `nuxt.config.ts`). No hace falta configurar nada más si el backend corre en
-esa máquina y ese puerto.
+Las llamadas van a `/api`, que reenvía `server/api/[...ruta].js` a
+`http://localhost:7002`. No hace falta configurar nada más si el backend corre
+en esa máquina y ese puerto.
 
 ## Variables de entorno
 
@@ -30,13 +30,17 @@ Copia `.env.example` a `.env` y ajusta lo que necesites.
 
 | Variable | Para qué sirve |
 | --- | --- |
-| `NUXT_PUBLIC_API_BASE` | URL base del backend, incluyendo `/api`. Si se deja vacía se usa la ruta relativa `/api`, que en desarrollo resuelve el proxy de Vite. |
+| `API_BASE` | URL del backend, **sin** `/api` al final (por ejemplo `http://mi-servidor:7002`). La lee el proxy de `server/api/[...ruta].js`. Si no se define, cae a `http://localhost:7002`. |
 | `NUXT_PUBLIC_SITE_URL` | URL pública del sitio, usada para la imagen OG en `nuxt generate`. |
 
 **La dirección del backend no está en este repositorio.** Es infraestructura y
 este repo es público, así que se configura como variable de entorno en el panel
-del hosting. El backend expone CORS abierto, de modo que el navegador puede
-llamarlo directo sin necesidad de una reescritura intermedia.
+del hosting.
+
+El navegador nunca habla con el backend directamente: siempre pide a `/api` de
+su propio origen y el proxy del servidor reenvía. Esto no es opcional. El sitio
+se sirve por HTTPS y el backend responde por HTTP, así que una llamada directa
+desde el navegador sería bloqueada por contenido mixto.
 
 ## Despliegue
 
@@ -44,10 +48,9 @@ llamarlo directo sin necesidad de una reescritura intermedia.
 npm run build
 ```
 
-En Vercel basta con definir `NUXT_PUBLIC_API_BASE` en las variables de entorno
-del proyecto. `vercel.json` está en `.gitignore`: la versión anterior llevaba la
-IP del backend escrita a mano y, con la variable de entorno, ese archivo ya no
-hace falta.
+En Vercel basta con definir `API_BASE` en las variables de entorno del proyecto.
+`vercel.json` está en `.gitignore`: llevaba la IP del backend escrita a mano y,
+con el proxy del servidor, ese archivo ya no hace falta.
 
 ## Estructura
 

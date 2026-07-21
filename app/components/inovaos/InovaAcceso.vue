@@ -35,7 +35,7 @@ onMounted(async () => {
       color="warning"
       variant="subtle"
       icon="i-mdi-alert-outline"
-      title="No tienes acceso a InovaOS"
+      title="No tienes acceso a InovaTask"
       :description="`Tu correo (${authEmail}) no está registrado en InovaOS, así que no puedes ver ni operar pendientes. Pide que te den de alta en InovaOS con este mismo correo.`"
     />
   </div>

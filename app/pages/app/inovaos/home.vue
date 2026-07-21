@@ -31,7 +31,7 @@ const cargar = () => store.fetchResumen()
 <template>
   <UDashboardPanel id="inovaos-home">
     <template #header>
-      <UDashboardNavbar title="InovaOS">
+      <UDashboardNavbar title="InovaTask">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>

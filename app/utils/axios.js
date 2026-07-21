@@ -7,18 +7,15 @@
 //   - Empresa activa en el header `X-Company`
 import axios from 'axios'
 
-// La base sale de `NUXT_PUBLIC_API_BASE`. Sin esa variable queda en `/api`,
-// relativo, que es lo que resuelve el proxy de Vite en desarrollo apuntando a
-// localhost:7002.
+// Siempre relativo. Quien decide a donde va realmente es el proxy de
+// `server/api/[...ruta].js`, que corre del lado del servidor y lee la
+// direccion del backend de la variable de entorno API_BASE.
 //
-// La URL del backend NO va en el repositorio: es infraestructura, y este repo
-// es publico. Se configura como variable de entorno en el hosting.
-const baseURL = import.meta.env.NUXT_PUBLIC_API_BASE
-  || import.meta.env.VITE_API_BASE
-  || '/api'
-
+// Es a proposito que el navegador nunca vea la URL del backend: Vercel sirve
+// por HTTPS y el backend responde por HTTP, asi que una llamada directa desde
+// el navegador seria bloqueada por contenido mixto.
 const axiosServices = axios.create({
-  baseURL,
+  baseURL: '/api',
   headers: { 'Content-Type': 'application/json' }
 })
 

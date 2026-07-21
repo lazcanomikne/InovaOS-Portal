@@ -20,15 +20,6 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  // La URL del backend se inyecta por entorno (NUXT_PUBLIC_API_BASE) y nunca
-  // se escribe en el repositorio. Vacia = ruta relativa /api, que en desarrollo
-  // resuelve el proxy de Vite de mas abajo.
-  runtimeConfig: {
-    public: {
-      apiBase: ''
-    }
-  },
-
   app: {
     head: {
       title: 'InovaOS',
@@ -49,18 +40,10 @@ export default defineNuxtConfig({
     }
   },
 
-  // En desarrollo el proxy evita CORS contra el backend local (IIS, puerto 7002).
-  // En producción el rewrite de Vercel manda /api/* al backend público.
-  vite: {
-    server: {
-      proxy: {
-        '/api': {
-          target: 'http://localhost:7002',
-          changeOrigin: true
-        }
-      }
-    }
-  },
+  // El reenvío de /api ya no se hace aquí: lo resuelve `server/api/[...ruta].js`,
+  // que corre igual en desarrollo y en producción. Tener un proxy de Vite además
+  // del de Nitro dejaba dos caminos distintos según el entorno, y sólo uno de
+  // los dos se probaba.
 
   // PWA: mismo manifiesto e iconos que el portal actual. `importScripts`
   // inyecta los manejadores de Web Push (push / notificationclick) en el
