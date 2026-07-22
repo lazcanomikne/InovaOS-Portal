@@ -2,6 +2,7 @@
 // Centro de Autorizaciones: aprobar, rechazar o reconsiderar solicitudes.
 import { ref, computed, onMounted } from 'vue'
 import axios from '~/utils/axios'
+import { aFechaLocal } from '~/utils/fechas'
 
 const toast = useToast()
 
@@ -30,20 +31,141 @@ const filteredItems = computed(() => {
   return base.filter(r => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q)))
 })
 
+const errorCarga = ref('')
+const empleados = ref([])
+
+const mensajeError = (e, r) => e?.response?.data?.message || e?.message || r
+
 const loadData = async () => {
   cargando.value = true
+  errorCarga.value = ''
   try {
-    const res = await axios.get('/rh/authorization/dashboard')
-    requests.value = res.data
+    // El catalogo alimenta el selector de empleado al crear una solicitud.
+    const [res, cat] = await Promise.all([
+      axios.get('/rh/authorization/dashboard'),
+      axios.get('/rh/gestion-vacaciones/catalogos').catch(() => ({ data: {} }))
+    ])
+    requests.value = res.data || []
+    empleados.value = cat.data?.jefes || []
+    tipos.value = cat.data?.tipos || tipos.value
   } catch (error) {
-    console.error('Error loading authorizations', error)
-    // MOCK DATA Fallback
-    requests.value = [
-      { RequestID: 1, EmployeeName: 'Ana Gomez', JobTitle: 'Vendedora', RequestType: 'VACATION', StartDate: '2025-10-10', EndDate: '2025-10-15', DaysQuantity: 6, Reason: 'Viaje familiar', Status: 'PENDING' },
-      { RequestID: 2, EmployeeName: 'Carlos Ruiz', JobTitle: 'Chofer', RequestType: 'PERMIT_5H', StartDate: '2025-10-12', EndDate: '2025-10-12', DaysQuantity: 0.5, Reason: 'Cita médica', Status: 'APPROVED' }
-    ]
+    // Nunca datos de ejemplo: en una pantalla de autorizaciones, inventar
+    // solicitudes haria creer que hay pendientes reales que atender.
+    requests.value = []
+    errorCarga.value = mensajeError(error, 'No se pudieron cargar las solicitudes.')
   } finally {
     cargando.value = false
+  }
+}
+
+// --- Alta y edicion -------------------------------------------------------
+// Se reutilizan los endpoints de Gestion de Vacaciones en vez de duplicar la
+// logica: ahi ya viven el calculo del descuento y la atribucion al periodo.
+const tipos = ref([
+  { valor: 'VACATION', etiqueta: 'Vacaciones' },
+  { valor: 'PERMIT_3H', etiqueta: 'Permiso 3 horas' },
+  { valor: 'PERMIT_5H', etiqueta: 'Permiso 5 horas' },
+  { valor: 'PERMIT_DAY', etiqueta: 'Permiso día completo' },
+  { valor: 'CASH_OUT', etiqueta: 'Canje de días' }
+])
+
+const modalForm = ref(false)
+const guardando = ref(false)
+const editando = ref(null)
+
+const formVacio = () => ({
+  EmployeeID: null,
+  RequestType: 'VACATION',
+  StartDate: '',
+  EndDate: '',
+  DaysQuantity: null,
+  Reason: '',
+  Status: 'PENDING'
+})
+
+const form = ref(formVacio())
+
+const opcionesEmpleado = computed(() =>
+  empleados.value.map(e => ({ label: e.Nombre, descripcion: e.JobTitle, value: e.EmployeeID }))
+)
+
+const esPermiso = computed(() => form.value.RequestType?.startsWith('PERMIT'))
+const esCanje = computed(() => form.value.RequestType === 'CASH_OUT')
+
+// Mismo calculo que hace el servidor, mostrado antes de guardar.
+const descuentoPrevisto = computed(() => {
+  const f = form.value
+  if (f.Status !== 'APPROVED') return 0
+  const fijos = { PERMIT_3H: 0.3, PERMIT_5H: 0.5, PERMIT_DAY: 1 }
+  if (f.RequestType in fijos) return fijos[f.RequestType]
+  if (f.RequestType === 'CASH_OUT') return Number(f.DaysQuantity) || 0
+  if (!f.StartDate) return 0
+  const a = new Date(f.StartDate)
+  const b = new Date(f.EndDate || f.StartDate)
+  return Math.round(Math.abs(b - a) / 86400000) + 1
+})
+
+const abrirAlta = () => {
+  editando.value = null
+  form.value = formVacio()
+  modalForm.value = true
+}
+
+const abrirEdicion = (item) => {
+  editando.value = item
+  form.value = {
+    EmployeeID: item.EmployeeID ?? null,
+    RequestType: item.RequestType,
+    StartDate: item.StartDate ? String(item.StartDate).slice(0, 10) : '',
+    EndDate: item.EndDate ? String(item.EndDate).slice(0, 10) : '',
+    DaysQuantity: item.DaysQuantity,
+    Reason: item.Reason || '',
+    Status: item.Status
+  }
+  modalForm.value = true
+}
+
+const guardar = async () => {
+  const f = form.value
+  if (!editando.value && !f.EmployeeID) {
+    toast.add({ title: 'Selecciona al empleado', color: 'warning' })
+    return
+  }
+  if (!f.StartDate) {
+    toast.add({ title: 'La fecha de inicio es obligatoria', color: 'warning' })
+    return
+  }
+  if (esCanje.value && !Number(f.DaysQuantity)) {
+    toast.add({ title: 'Indica cuántos días se canjean', color: 'warning' })
+    return
+  }
+
+  guardando.value = true
+  try {
+    if (editando.value) {
+      await axios.put(`/rh/gestion-vacaciones/solicitudes/${editando.value.RequestID}`, f)
+      toast.add({ title: 'Solicitud actualizada', color: 'success' })
+    } else {
+      await axios.post(`/rh/gestion-vacaciones/empleados/${f.EmployeeID}/solicitudes`, f)
+      toast.add({ title: 'Solicitud creada', color: 'success' })
+    }
+    modalForm.value = false
+    await loadData()
+  } catch (error) {
+    toast.add({ title: mensajeError(error, 'No se pudo guardar la solicitud'), color: 'error' })
+  } finally {
+    guardando.value = false
+  }
+}
+
+const eliminar = async (item) => {
+  if (!confirm(`¿Eliminar la solicitud de ${item.EmployeeName}? Esta acción no se puede deshacer.`)) return
+  try {
+    await axios.delete(`/rh/gestion-vacaciones/solicitudes/${item.RequestID}`)
+    toast.add({ title: 'Solicitud eliminada', color: 'success' })
+    await loadData()
+  } catch (error) {
+    toast.add({ title: mensajeError(error, 'No se pudo eliminar'), color: 'error' })
   }
 }
 
@@ -89,7 +211,13 @@ const ejecutarAccion = async () => {
 
 const getTypeColor = type => type === 'VACATION' ? 'primary' : (type === 'CASH_OUT' ? 'success' : 'info')
 const getTypeLabel = type => type === 'VACATION' ? 'Vacaciones' : (type === 'CASH_OUT' ? 'Canje' : 'Permiso')
-const formatDate = d => new Date(d).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
+// Las fechas de vacaciones son columnas DATE, sin hora. Se arman en hora local
+// desde el texto: pasarlas por `new Date()` las interpreta como medianoche UTC
+// y en Mexico (UTC-6) se mostraban un dia antes de la que esta guardada.
+const formatDate = (d) => {
+  const f = aFechaLocal(d)
+  return f ? f.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }) : '-'
+}
 
 // `w` es el peso de la columna en porcentaje. La tabla usa `table-fixed`, así
 // que estos anchos mandan y el texto largo se recorta con elipsis en lugar de
@@ -98,8 +226,9 @@ const headers = [
   { key: 'Employee', title: 'Empleado', w: 'w-[26%]' },
   { key: 'RequestType', title: 'Tipo', w: 'w-[12%]' },
   { key: 'fechas', title: 'Fechas Solicitadas', w: 'w-[18%]' },
-  { key: 'Reason', title: 'Motivo', w: 'w-[28%]' },
-  { key: 'actions', title: 'Acciones', align: 'end', w: 'w-[16%]' }
+  { key: 'Reason', title: 'Motivo', w: 'w-[22%]' },
+  { key: 'actions', title: 'Acciones', align: 'end', w: 'w-[14%]' },
+  { key: 'edicion', title: '', align: 'end', w: 'w-[8%]' }
 ]
 
 const columns = headers.map((hdr) => {
@@ -150,18 +279,33 @@ onMounted(() => loadData())
         <template #right>
           <UButton
             color="neutral"
-            variant="outline"
+            variant="ghost"
             icon="i-mdi-refresh"
             :loading="cargando"
+            aria-label="Actualizar"
             @click="loadData"
-          >
-            Actualizar
+          />
+          <UButton icon="i-mdi-plus" @click="abrirAlta">
+            Nueva solicitud
           </UButton>
         </template>
       </UDashboardNavbar>
     </template>
 
     <template #body>
+      <UAlert
+        v-if="errorCarga"
+        color="error"
+        variant="subtle"
+        icon="i-mdi-alert-circle-outline"
+        :title="errorCarga"
+        class="mb-4"
+      >
+        <template #actions>
+          <UButton label="Reintentar" color="error" variant="outline" size="xs" @click="loadData" />
+        </template>
+      </UAlert>
+
       <!-- Tarjetas de filtro: siempre visibles, no se comprimen -->
       <div class="grid grid-cols-12 gap-4 mb-4 shrink-0">
         <div class="col-span-12 md:col-span-4">
@@ -379,8 +523,122 @@ onMounted(() => loadData())
               </UButton>
             </div>
           </template>
+
+          <template #edicion-cell="{ row }">
+            <div class="flex gap-1 justify-end">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-mdi-pencil-outline"
+                aria-label="Editar"
+                @click="abrirEdicion(row.original)"
+              />
+              <UButton
+                size="xs"
+                color="error"
+                variant="ghost"
+                icon="i-mdi-trash-can-outline"
+                aria-label="Eliminar"
+                @click="eliminar(row.original)"
+              />
+            </div>
+          </template>
         </UTable>
       </UCard>
+
+      <UModal
+        v-model:open="modalForm"
+        :title="editando ? 'Editar solicitud' : 'Nueva solicitud'"
+      >
+        <template #body>
+          <div class="space-y-4">
+            <UFormField v-if="!editando" label="Empleado" required>
+              <USelectMenu
+                v-model="form.EmployeeID"
+                :items="opcionesEmpleado"
+                value-key="value"
+                placeholder="Selecciona al empleado"
+                :search-input="{ placeholder: 'Buscar persona...' }"
+                icon="i-mdi-account-outline"
+                class="w-full"
+              >
+                <template #item-label="{ item }">
+                  <div class="min-w-0">
+                    <div class="truncate">{{ item.label }}</div>
+                    <div v-if="item.descripcion" class="text-xs text-muted truncate">{{ item.descripcion }}</div>
+                  </div>
+                </template>
+              </USelectMenu>
+            </UFormField>
+
+            <UFormField label="Tipo" required>
+              <USelectMenu
+                v-model="form.RequestType"
+                :items="tipos"
+                value-key="valor"
+                label-key="etiqueta"
+                icon="i-mdi-shape-outline"
+                class="w-full"
+              />
+            </UFormField>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <UFormField :label="esPermiso || esCanje ? 'Fecha' : 'Del'" required>
+                <UInput v-model="form.StartDate" type="date" class="w-full" />
+              </UFormField>
+              <UFormField v-if="!esPermiso && !esCanje" label="Al">
+                <UInput v-model="form.EndDate" type="date" class="w-full" />
+              </UFormField>
+              <UFormField v-if="esCanje" label="Días a canjear" required>
+                <UInput v-model="form.DaysQuantity" type="number" min="0" step="0.5" class="w-full" />
+              </UFormField>
+            </div>
+
+            <UFormField label="Estatus">
+              <USelectMenu
+                v-model="form.Status"
+                :items="[
+                  { valor: 'PENDING', etiqueta: 'Pendiente' },
+                  { valor: 'APPROVED', etiqueta: 'Autorizada' },
+                  { valor: 'REJECTED', etiqueta: 'Rechazada' }
+                ]"
+                value-key="valor"
+                label-key="etiqueta"
+                icon="i-mdi-progress-check"
+                class="w-full"
+              />
+            </UFormField>
+
+            <UFormField label="Motivo">
+              <UTextarea v-model="form.Reason" :rows="2" class="w-full" />
+            </UFormField>
+
+            <div class="flex items-center justify-between rounded-lg border border-default px-3 py-2.5">
+              <div>
+                <div class="text-sm font-medium text-highlighted">Descontará del saldo</div>
+                <p class="text-xs text-muted">
+                  {{ form.Status === 'APPROVED' ? 'Sólo las autorizadas consumen días.' : 'Al no estar autorizada, no consume días.' }}
+                </p>
+              </div>
+              <span class="text-2xl font-bold" :class="descuentoPrevisto > 0 ? 'text-primary' : 'text-muted'">
+                {{ descuentoPrevisto }}
+              </span>
+            </div>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2 w-full">
+            <UButton label="Cancelar" color="neutral" variant="ghost" @click="modalForm = false" />
+            <UButton
+              :label="editando ? 'Guardar' : 'Crear'"
+              icon="i-mdi-check"
+              :loading="guardando"
+              @click="guardar"
+            />
+          </div>
+        </template>
+      </UModal>
 
       <UModal v-model:open="confirmarAbierto" title="Confirmar acción">
         <template #body>

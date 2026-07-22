@@ -2,6 +2,7 @@
 // Calendario de Ausencias: rejilla mensual + detalle del día seleccionado.
 import { ref, computed, onMounted } from 'vue'
 import axios from '~/utils/axios'
+import { aFechaLocal } from '~/utils/fechas'
 
 const today = new Date()
 const currentMonth = ref(today.getMonth())
@@ -89,9 +90,12 @@ const formatDateLong = (date) => {
   return date.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+// Las fechas de vacaciones son columnas DATE, sin hora. Se arman en hora local
+// desde el texto: pasarlas por `new Date()` las interpreta como medianoche UTC
+// y en Mexico (UTC-6) se mostraban un dia antes de la que esta guardada.
 const formatDateShort = (d) => {
-  if (!d) return '-'
-  return new Date(d).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }).replace('.', '')
+  const f = aFechaLocal(d)
+  return f ? f.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }).replace('.', '') : '-'
 }
 
 // `w` es el peso de la columna en porcentaje. La tabla de detalle usa

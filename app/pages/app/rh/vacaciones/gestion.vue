@@ -7,6 +7,7 @@
 // El acceso no se controla aquí sino desde los permisos del menú, así que
 // basta con quitar la entrada a un perfil para que deje de verla.
 import axios from '~/utils/axios'
+import { fechaCorta, aValorInput } from '~/utils/fechas'
 
 const toast = useToast()
 
@@ -41,18 +42,12 @@ const ESTATUS = {
 const metaEstatus = e => ESTATUS[e] || { etiqueta: e, color: 'neutral' }
 
 // --- Formato ----------------------------------------------------------------
-const aFecha = (v) => {
-  if (!v) return null
-  const f = new Date(v)
-  return Number.isNaN(f.getTime()) ? null : f
-}
-
-const fecha = (v) => {
-  const f = aFecha(v)
-  return f ? f.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
-}
-
-const aInput = v => (v ? String(v).slice(0, 10) : '')
+// Las fechas de este modulo son columnas DATE, sin hora. Se formatean con el
+// utilitario compartido, que las arma en hora local a partir del texto: pasarlas
+// por `new Date()` las convertia desde medianoche UTC y las mostraba un dia
+// antes de la que esta guardada.
+const fecha = fechaCorta
+const aInput = aValorInput
 
 // El saldo se colorea por umbral: en rojo cuando está sobregirado, en ámbar
 // cuando queda poco. Es el dato que se busca de un vistazo.

@@ -3,6 +3,7 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from '~/utils/axios'
 import { useAuthStore } from '~/stores/auth'
+import { aFechaLocal } from '~/utils/fechas'
 
 const toast = useToast()
 
@@ -138,13 +139,16 @@ const getStatusIcon = (status) => {
   if (status === 'PENDING') return 'i-mdi-clock-outline'
   return 'i-mdi-minus-circle'
 }
+// Las fechas de vacaciones son columnas DATE, sin hora. Se arman en hora local
+// desde el texto: pasarlas por `new Date()` las interpreta como medianoche UTC
+// y en Mexico (UTC-6) se mostraban un dia antes de la que esta guardada.
 const formatDateShort = (d) => {
-  if (!d) return '-'
-  return new Date(d).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: '2-digit' })
+  const f = aFechaLocal(d)
+  return f ? f.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '-'
 }
 const formatDate = (d) => {
-  if (!d) return ''
-  return new Date(d).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })
+  const f = aFechaLocal(d)
+  return f ? f.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : ''
 }
 
 // La foto NO viene del perfil de vacaciones: ese procedimiento consulta la tabla

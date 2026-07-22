@@ -5,6 +5,7 @@ import axios from '~/utils/axios'
 import * as XLSX from 'xlsx' // Importar librería Excel
 import jsPDF from 'jspdf' // Importar librería PDF
 import autoTable from 'jspdf-autotable' // Plugin tablas PDF
+import { aFechaLocal } from '~/utils/fechas'
 
 const toast = useToast()
 
@@ -152,7 +153,8 @@ const getStatusColor = (status) => {
 }
 const formatDateShort = (d) => {
   if (!d) return '-'
-  return new Date(d).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: '2-digit' })
+  const f = aFechaLocal(d)
+  return f ? f.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '-'
 }
 
 // `w` es el peso de la columna en porcentaje. La tabla usa `table-fixed`, así
