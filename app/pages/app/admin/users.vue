@@ -14,6 +14,67 @@ const selectedRole = ref(null)
 const selectedMenuIds = ref([])
 const saving = ref(false)
 
+// --- Gestion de roles ---
+const modalRol = ref(false)
+const guardandoRol = ref(false)
+const rolEditado = ref(null)   // null = alta; objeto = renombrar
+const nombreRol = ref('')
+
+const mensajeError = (e, r) => e?.response?.data?.message || e?.message || r
+
+const abrirAltaRol = () => {
+  rolEditado.value = null
+  nombreRol.value = ''
+  modalRol.value = true
+}
+
+const abrirRenombrarRol = (role) => {
+  rolEditado.value = role
+  nombreRol.value = role.RoleName
+  modalRol.value = true
+}
+
+const guardarRol = async () => {
+  const nombre = nombreRol.value.trim()
+  if (!nombre) {
+    toast.add({ title: 'Escribe el nombre del rol', color: 'warning' })
+    return
+  }
+  guardandoRol.value = true
+  try {
+    if (rolEditado.value) {
+      await axios.put(`/admin/roles/${rolEditado.value.RoleID}`, { roleName: nombre })
+      rolEditado.value.RoleName = nombre
+      toast.add({ title: 'Rol renombrado', color: 'success' })
+    } else {
+      const r = await axios.post('/admin/roles', { roleName: nombre })
+      roles.value.push(r.data)
+      selectRole(r.data)  // se abre listo para asignarle permisos
+      toast.add({ title: 'Rol creado. Marca los módulos a los que tendrá acceso.', color: 'success' })
+    }
+    modalRol.value = false
+  } catch (e) {
+    toast.add({ title: mensajeError(e, 'No se pudo guardar el rol'), color: 'error' })
+  } finally {
+    guardandoRol.value = false
+  }
+}
+
+const eliminarRol = async (role) => {
+  if (!confirm(`¿Eliminar el rol "${role.RoleName}"? Esta acción no se puede deshacer.`)) return
+  try {
+    await axios.delete(`/admin/roles/${role.RoleID}`)
+    roles.value = roles.value.filter(r => r.RoleID !== role.RoleID)
+    if (selectedRole.value?.RoleID === role.RoleID) {
+      selectedRole.value = null
+      selectedMenuIds.value = []
+    }
+    toast.add({ title: 'Rol eliminado', color: 'success' })
+  } catch (e) {
+    toast.add({ title: mensajeError(e, 'No se pudo eliminar el rol'), color: 'error' })
+  }
+}
+
 // --- COMPUTED: Transformar lista plana a Árbol ---
 const menuTree = computed(() => {
   if (!allMenus.value.length) return []
@@ -137,9 +198,18 @@ onMounted(() => {
               </p>
             </template>
 
-            <p class="text-xs font-medium text-dimmed uppercase px-2 py-2">
-              Roles disponibles
-            </p>
+            <div class="flex items-center justify-between px-2 py-2">
+              <p class="text-xs font-medium text-dimmed uppercase">
+                Roles disponibles
+              </p>
+              <UButton
+                icon="i-mdi-plus"
+                size="xs"
+                variant="soft"
+                label="Nuevo"
+                @click="abrirAltaRol"
+              />
+            </div>
 
             <div class="flex flex-col gap-1">
               <button
@@ -160,10 +230,18 @@ onMounted(() => {
                   {{ role.RoleName }}
                 </span>
 
-                <UIcon
-                  name="i-mdi-chevron-right"
-                  class="size-4 text-dimmed"
-                />
+                <UDropdownMenu
+                  :items="[[
+                    { label: 'Renombrar', icon: 'i-mdi-pencil-outline', onSelect: () => abrirRenombrarRol(role) },
+                    { label: 'Eliminar', icon: 'i-mdi-trash-can-outline', color: 'error', onSelect: () => eliminarRol(role) }
+                  ]]"
+                >
+                  <UIcon
+                    name="i-mdi-dots-vertical"
+                    class="size-4 text-dimmed hover:text-highlighted"
+                    @click.stop
+                  />
+                </UDropdownMenu>
               </button>
             </div>
           </UCard>
@@ -308,4 +386,35 @@ onMounted(() => {
       </div>
     </template>
   </UDashboardPanel>
+
+  <UModal
+    v-model:open="modalRol"
+    :title="rolEditado ? 'Renombrar rol' : 'Nuevo rol'"
+  >
+    <template #body>
+      <UFormField
+        label="Nombre del rol"
+        required
+        :help="rolEditado ? undefined : 'Nace sin permisos. Después marca los módulos a los que tendrá acceso.'"
+      >
+        <UInput
+          v-model="nombreRol"
+          placeholder="Ej. SUPERVISOR"
+          class="w-full"
+          @keyup.enter="guardarRol"
+        />
+      </UFormField>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2 w-full">
+        <UButton label="Cancelar" color="neutral" variant="ghost" @click="modalRol = false" />
+        <UButton
+          :label="rolEditado ? 'Guardar' : 'Crear'"
+          icon="i-mdi-check"
+          :loading="guardandoRol"
+          @click="guardarRol"
+        />
+      </div>
+    </template>
+  </UModal>
 </template>
