@@ -243,7 +243,9 @@ const formVacio = () => ({
   EndDate: '',
   DaysQuantity: null,
   Reason: '',
-  Status: 'APPROVED'
+  Status: 'APPROVED',
+  SinDescuento: false,
+  NotaAjuste: ''
 })
 
 const formMovimiento = ref(formVacio())
@@ -262,7 +264,9 @@ const abrirEdicionMovimiento = (s) => {
     EndDate: aInput(s.EndDate),
     DaysQuantity: s.DaysQuantity,
     Reason: s.Reason || '',
-    Status: s.Status
+    Status: s.Status,
+    SinDescuento: !!s.SinDescuento,
+    NotaAjuste: s.NotaAjuste || ''
   }
   modalMovimiento.value = true
 }
@@ -274,7 +278,7 @@ const esCanje = computed(() => formMovimiento.value.RequestType === 'CASH_OUT')
 // de guardar para que no haya sorpresas en el saldo.
 const descuentoPrevisto = computed(() => {
   const f = formMovimiento.value
-  if (f.Status !== 'APPROVED') return 0
+  if (f.Status !== 'APPROVED' || f.SinDescuento) return 0
   const fijos = { PERMIT_3H: 0.3, PERMIT_5H: 0.5, PERMIT_DAY: 1 }
   if (f.RequestType in fijos) return fijos[f.RequestType]
   if (f.RequestType === 'CASH_OUT') return Number(f.DaysQuantity) || 0
@@ -292,6 +296,10 @@ const guardarMovimiento = async () => {
   }
   if (esCanje.value && !Number(f.DaysQuantity)) {
     toast.add({ title: 'Indica cuántos días se canjean', color: 'warning', icon: 'i-mdi-alert-outline' })
+    return
+  }
+  if (f.SinDescuento && !f.NotaAjuste.trim()) {
+    toast.add({ title: 'Al no descontar días, escribe el motivo', color: 'warning', icon: 'i-mdi-alert-outline' })
     return
   }
 
@@ -600,7 +608,7 @@ const guardarPeriodo = async () => {
   <USlideover
     v-model:open="panel"
     :title="detalle?.empleado?.NombreCompleto || 'Empleado'"
-    :ui="{ content: 'max-w-3xl' }"
+    :ui="{ content: 'max-w-[min(80rem,96vw)]' }"
   >
     <template #body>
       <div v-if="cargandoDetalle" class="space-y-4">
@@ -710,7 +718,11 @@ const guardarPeriodo = async () => {
             <h4 class="font-semibold text-highlighted">Periodos</h4>
           </template>
           <div class="overflow-auto" style="max-height: 14rem">
-            <table class="w-full text-sm">
+            <table class="w-full text-sm table-fixed">
+              <colgroup>
+                <col style="width: 18%"><col style="width: 34%"><col style="width: 14%">
+                <col style="width: 15%"><col style="width: 12%"><col style="width: 7%">
+              </colgroup>
               <thead class="bg-elevated/50 sticky top-0">
                 <tr class="text-xs uppercase tracking-wide text-muted">
                   <th class="text-left font-medium px-4 py-2">Año</th>
@@ -787,7 +799,11 @@ const guardarPeriodo = async () => {
           </div>
 
           <div v-else class="overflow-auto" style="max-height: 22rem">
-            <table class="w-full text-sm">
+            <table class="w-full text-sm table-fixed">
+              <colgroup>
+                <col style="width: 26%"><col style="width: 20%"><col style="width: 14%">
+                <col style="width: 12%"><col style="width: 14%"><col style="width: 14%">
+              </colgroup>
               <thead class="bg-elevated/50 sticky top-0">
                 <tr class="text-xs uppercase tracking-wide text-muted">
                   <th class="text-left font-medium px-4 py-2">Tipo</th>
@@ -814,7 +830,17 @@ const guardarPeriodo = async () => {
                     </template>
                   </td>
                   <td class="px-4 py-2 text-right font-medium">
-                    {{ s.DeductionValue }}
+                    <template v-if="s.SinDescuento">
+                      <UBadge
+                        color="info"
+                        variant="subtle"
+                        size="xs"
+                        :title="s.NotaAjuste || 'Marcado sin descuento'"
+                      >
+                        sin cargo
+                      </UBadge>
+                    </template>
+                    <template v-else>{{ s.DeductionValue }}</template>
                   </td>
                   <td class="px-4 py-2 text-xs text-muted">
                     {{ s.NumeroPeriodo ? 'Año ' + s.NumeroPeriodo : '—' }}
@@ -953,15 +979,47 @@ const guardarPeriodo = async () => {
           <UTextarea v-model="formMovimiento.Reason" :rows="2" class="w-full" />
         </UFormField>
 
+        <!-- No descontar: RH concede el permiso sin cobrar los días. Exige un
+             comentario porque es una excepción que hay que poder justificar
+             después ante una aclaración o auditoría. -->
+        <div class="rounded-lg border border-default px-3 py-2.5">
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-sm font-medium text-highlighted">No descontar días</div>
+              <p class="text-xs text-muted">
+                Se registra el movimiento pero no consume saldo.
+              </p>
+            </div>
+            <USwitch v-model="formMovimiento.SinDescuento" />
+          </div>
+
+          <UFormField
+            v-if="formMovimiento.SinDescuento"
+            label="Motivo del ajuste"
+            required
+            class="mt-3"
+            help="Queda guardado con el movimiento."
+          >
+            <UTextarea
+              v-model="formMovimiento.NotaAjuste"
+              :rows="2"
+              placeholder="Por qué no se descuentan los días..."
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+
         <!-- Se muestra el descuento antes de guardar: es lo que va a mover el
              saldo, y calcularlo mentalmente para un permiso es fuente de error. -->
         <div class="flex items-center justify-between rounded-lg border border-default px-3 py-2.5">
           <div>
             <div class="text-sm font-medium text-highlighted">Descontará del saldo</div>
             <p class="text-xs text-muted">
-              {{ formMovimiento.Status === 'APPROVED'
-                ? 'Sólo las autorizadas consumen días.'
-                : 'Al no estar autorizada, no consume días.' }}
+              {{ formMovimiento.SinDescuento
+                ? 'Marcado como no descontable.'
+                : formMovimiento.Status === 'APPROVED'
+                  ? 'Sólo las autorizadas consumen días.'
+                  : 'Al no estar autorizada, no consume días.' }}
             </p>
           </div>
           <span class="text-2xl font-bold" :class="descuentoPrevisto > 0 ? 'text-primary' : 'text-muted'">
