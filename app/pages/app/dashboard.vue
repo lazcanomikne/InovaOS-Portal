@@ -192,35 +192,46 @@ const iconoResultado = (nombreIcono) => {
           </div>
         </UCard>
 
-        <!-- Accesos por módulo -->
-        <h2 class="text-sm font-bold uppercase tracking-wide text-muted mt-10 mb-3">
+        <!-- Accesos por módulo.
+             Estilo lanzador de aplicaciones: cada acceso es un cuadro con el
+             icono arriba y el nombre debajo, en una cuadrícula uniforme. Se
+             conserva el agrupamiento por módulo, porque aplanarlo dejaría
+             decenas de cuadros sin contexto. -->
+        <h2 class="text-sm font-bold uppercase tracking-wide text-muted mt-10 mb-4">
           Accesos rápidos
         </h2>
 
         <div
           v-for="g in gruposAccesos"
           :key="g.module"
-          class="mb-5"
+          class="mb-8"
         >
-          <div class="flex items-center gap-2 mb-2">
-            <span class="flex items-center justify-center size-7 rounded-full bg-primary/10 text-primary shrink-0">
-              <UIcon :name="`solar:${g.icon}`" class="size-4" />
+          <div class="flex items-center gap-2 mb-3">
+            <span class="flex items-center justify-center size-6 rounded-md bg-primary/10 text-primary shrink-0">
+              <UIcon :name="`solar:${g.icon}`" class="size-3.5" />
             </span>
-            <span class="text-sm font-bold text-highlighted">{{ g.module }}</span>
+            <span class="text-xs font-bold uppercase tracking-wide text-muted">{{ g.module }}</span>
           </div>
 
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-x-3 gap-y-5">
             <button
               v-for="acc in g.items"
               :key="acc.path"
               type="button"
-              class="flex items-center gap-3 p-4 text-left rounded-lg border border-default bg-default cursor-pointer transition duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
+              class="group flex flex-col items-center gap-2.5 rounded-xl p-2 cursor-pointer transition-colors hover:bg-elevated/60"
               @click="go(acc.path)"
             >
-              <span class="flex items-center justify-center size-10 rounded-full bg-primary/10 text-primary shrink-0">
-                <UIcon :name="`solar:${acc.icon}`" class="size-5" />
+              <!-- El icono va en una placa cuadrada de esquinas redondeadas,
+                   como un icono de app. Se despega con una sombra sutil que
+                   crece al pasar el cursor. -->
+              <span
+                class="flex items-center justify-center size-16 rounded-2xl bg-default border border-default text-primary shrink-0 shadow-sm transition-all group-hover:shadow-md group-hover:-translate-y-0.5 group-hover:border-primary/40"
+              >
+                <UIcon :name="`solar:${acc.icon}`" class="size-8" />
               </span>
-              <span class="font-medium text-highlighted">{{ acc.title }}</span>
+              <span class="text-xs font-medium text-highlighted text-center leading-tight line-clamp-2 w-full">
+                {{ acc.title }}
+              </span>
             </button>
           </div>
         </div>
