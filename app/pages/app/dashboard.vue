@@ -45,26 +45,91 @@ const clearSearch = () => { query.value = ''; groups.value = [] }
 
 const go = (path) => { if (path) router.push(path) }
 
-// --- Accesos agrupados por módulo (menú del usuario, filtrado por permisos) ---
-const gruposAccesos = ref([])
+// --- Iconos por acceso ------------------------------------------------------
+// Cada acceso lleva un icono acorde a lo que hace. Antes todos los hijos de un
+// módulo heredaban el icono del padre, así que salían repetidos. El mapa es por
+// ruta -no por título-, que es lo estable aunque se renombre el menú.
+const ICONO_POR_RUTA = {
+  '/app/dashboard': 'i-mdi-view-dashboard-outline',
+
+  // Logística
+  '/app/operaciones/ruta': 'i-mdi-map-marker-path',
+  '/app/operaciones/flotilla': 'i-mdi-truck-outline',
+
+  // Recursos Humanos
+  '/app/rh/vacaciones/mis-vacaciones': 'i-mdi-beach',
+  '/app/rh/vacaciones/autorizaciones': 'i-mdi-clipboard-check-outline',
+  '/app/rh/vacaciones/calendario-equipo': 'i-mdi-calendar-account-outline',
+  '/app/rh/vacaciones/reportes': 'i-mdi-file-chart-outline',
+  '/app/rh/vacaciones/calendario': 'i-mdi-calendar-remove-outline',
+  '/app/rh/organigrama': 'i-mdi-sitemap-outline',
+  '/app/rh/vacaciones/gestion': 'i-mdi-account-clock-outline',
+
+  // Ingeniería
+  '/app/ingenieria/helpdesk': 'i-mdi-face-agent',
+  '/app/ingenieria/consumibles': 'i-mdi-printer-outline',
+
+  // InovaCash (Tesorería)
+  '/app/tesoreria/efectivo/sobres': 'i-mdi-wallet-outline',
+  '/app/tesoreria/monitor': 'i-mdi-monitor-dashboard',
+  '/app/tesoreria/conteo-efectivo': 'i-mdi-cash-register',
+  '/app/tesoreria/conciliacion': 'i-mdi-scale-balance',
+  '/app/tesoreria/libro-mayor': 'i-mdi-book-open-variant-outline',
+
+  '/ventas': 'i-mdi-cart-outline',
+
+  // Gestión
+  '/app/admin/users': 'i-mdi-shield-account-outline',
+  '/app/gestion/tesoreria/sobres': 'i-mdi-email-multiple-outline',
+  '/app/admin/usuarios': 'i-mdi-account-group-outline',
+  '/app/gestion/tesoreria/categorias': 'i-mdi-tag-multiple-outline',
+
+  // CRM
+  '/app/crm': 'i-mdi-handshake-outline',
+  '/app/crm/dashboard': 'i-mdi-chart-box-outline',
+  '/app/crm/prospects': 'i-mdi-account-star-outline',
+  '/app/crm/pipeline': 'i-mdi-chart-timeline-variant',
+  '/app/crm/opportunities': 'i-mdi-target',
+  '/app/crm/backlog': 'i-mdi-format-list-checks',
+  '/app/crm/commercial-management': 'i-mdi-briefcase-outline',
+
+  // Contabilidad
+  '/app/contabilidad': 'i-mdi-calculator-variant-outline',
+  '/app/contabilidad/pagos-efectuados': 'i-mdi-cash-check',
+
+  // InovaTask
+  '/app/inovaos': 'i-mdi-checkbox-multiple-marked-outline',
+  '/app/inovaos/home': 'i-mdi-home-outline',
+  '/app/inovaos/pendientes': 'i-mdi-clipboard-list-outline',
+  '/app/inovaos/tablero': 'i-mdi-view-column-outline',
+  '/app/inovaos/crear': 'i-mdi-plus-box-outline',
+  '/app/inovaos/metricas': 'i-mdi-chart-line'
+}
+
+const iconoAcceso = ruta => ICONO_POR_RUTA[ruta] || 'i-mdi-apps'
+
+// --- Accesos del usuario (menú filtrado por permisos), aplanados -------------
+// Un solo listado de cuadros, sin agrupar por módulo, como un lanzador de apps.
+const accesos = ref([])
 const fetchMenu = async () => {
   try {
     const r = await axios.get('/admin/my-menu')
-    const grupos = []
-    const generales = []
+    const lista = []
+    const vistos = new Set()
+
+    const agregar = (item) => {
+      if (!item.Path || vistos.has(item.Path)) return
+      vistos.add(item.Path)
+      lista.push({ title: item.Title, path: item.Path, icon: iconoAcceso(item.Path) })
+    }
+
     ;(r.data || []).forEach((item) => {
-      const icon = item.Icon || 'widget-outline'
-      if (item.children && item.children.length) {
-        const items = item.children.filter(ch => ch.Path).map(ch => ({ title: ch.Title, path: ch.Path, icon }))
-        if (item.Path) items.unshift({ title: item.Title, path: item.Path, icon })
-        if (items.length) grupos.push({ module: item.Title, icon, items })
-      } else if (item.Path) {
-        generales.push({ title: item.Title, path: item.Path, icon })
-      }
+      agregar(item) // el módulo padre, si es navegable
+      ;(item.children || []).forEach(agregar)
     })
-    if (generales.length) grupos.push({ module: 'General', icon: 'widget-outline', items: generales })
-    gruposAccesos.value = grupos
-  } catch { gruposAccesos.value = [] }
+
+    accesos.value = lista
+  } catch { accesos.value = [] }
 }
 
 onMounted(() => {
@@ -192,51 +257,35 @@ const iconoResultado = (nombreIcono) => {
           </div>
         </UCard>
 
-        <!-- Accesos por módulo.
-             Estilo lanzador de aplicaciones: cada acceso es un cuadro con el
-             icono arriba y el nombre debajo, en una cuadrícula uniforme. Se
-             conserva el agrupamiento por módulo, porque aplanarlo dejaría
-             decenas de cuadros sin contexto. -->
+        <!-- Accesos: un solo listado de cuadros tipo lanzador de aplicaciones,
+             sin agrupar. Cada uno con su icono arriba y el nombre debajo. -->
         <h2 class="text-sm font-bold uppercase tracking-wide text-muted mt-10 mb-4">
           Accesos rápidos
         </h2>
 
-        <div
-          v-for="g in gruposAccesos"
-          :key="g.module"
-          class="mb-8"
-        >
-          <div class="flex items-center gap-2 mb-3">
-            <span class="flex items-center justify-center size-6 rounded-md bg-primary/10 text-primary shrink-0">
-              <UIcon :name="`solar:${g.icon}`" class="size-3.5" />
-            </span>
-            <span class="text-xs font-bold uppercase tracking-wide text-muted">{{ g.module }}</span>
-          </div>
-
-          <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-x-3 gap-y-5">
-            <button
-              v-for="acc in g.items"
-              :key="acc.path"
-              type="button"
-              class="group flex flex-col items-center gap-2.5 rounded-xl p-2 cursor-pointer transition-colors hover:bg-elevated/60"
-              @click="go(acc.path)"
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-x-3 gap-y-5">
+          <button
+            v-for="acc in accesos"
+            :key="acc.path"
+            type="button"
+            class="group flex flex-col items-center gap-2.5 rounded-xl p-2 cursor-pointer transition-colors hover:bg-elevated/60"
+            @click="go(acc.path)"
+          >
+            <!-- El icono va en una placa cuadrada de esquinas redondeadas, como
+                 un icono de app. Se despega con una sombra sutil que crece al
+                 pasar el cursor. -->
+            <span
+              class="flex items-center justify-center size-16 rounded-2xl bg-default border border-default text-primary shrink-0 shadow-sm transition-all group-hover:shadow-md group-hover:-translate-y-0.5 group-hover:border-primary/40"
             >
-              <!-- El icono va en una placa cuadrada de esquinas redondeadas,
-                   como un icono de app. Se despega con una sombra sutil que
-                   crece al pasar el cursor. -->
-              <span
-                class="flex items-center justify-center size-16 rounded-2xl bg-default border border-default text-primary shrink-0 shadow-sm transition-all group-hover:shadow-md group-hover:-translate-y-0.5 group-hover:border-primary/40"
-              >
-                <UIcon :name="`solar:${acc.icon}`" class="size-8" />
-              </span>
-              <span class="text-xs font-medium text-highlighted text-center leading-tight line-clamp-2 w-full">
-                {{ acc.title }}
-              </span>
-            </button>
-          </div>
+              <UIcon :name="acc.icon" class="size-8" />
+            </span>
+            <span class="text-xs font-medium text-highlighted text-center leading-tight line-clamp-2 w-full">
+              {{ acc.title }}
+            </span>
+          </button>
         </div>
 
-        <div v-if="!gruposAccesos.length" class="text-center text-muted py-6">
+        <div v-if="!accesos.length" class="text-center text-muted py-6">
           No tienes accesos asignados.
         </div>
       </div>
