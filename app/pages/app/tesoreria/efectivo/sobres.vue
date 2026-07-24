@@ -575,12 +575,24 @@ const openDialog = (type) => {
 // El estado se activa pasado un umbral y se libera antes de soltarlo, para que
 // no parpadee justo en el borde (histéresis).
 const compacto = ref(false)
+const barraRef = ref(null)      // barra de acciones pegada arriba
 let contenedorScroll = null
+let ro = null                    // observa el alto de la barra
 
 const onScroll = () => {
   const y = contenedorScroll ? contenedorScroll.scrollTop : 0
   if (!compacto.value && y > 60) compacto.value = true
   else if (compacto.value && y < 30) compacto.value = false
+}
+
+// Publica el alto real de la barra como variable CSS (--barra-h) sobre el
+// contenedor de scroll, para que el encabezado de la tabla se pegue JUSTO
+// debajo de ella y no quede tapado. Se recalcula sola cuando la barra cambia
+// de tamaño (al compactarse) gracias al ResizeObserver.
+const medirBarra = () => {
+  if (barraRef.value && contenedorScroll) {
+    contenedorScroll.style.setProperty('--barra-h', barraRef.value.offsetHeight + 'px')
+  }
 }
 
 onMounted(() => {
@@ -596,6 +608,11 @@ onMounted(() => {
     contenedorScroll = document.querySelector('#tesoreria-caja-chica [data-slot="body"]')
       || document.querySelector('[data-slot="body"]')
     contenedorScroll?.addEventListener('scroll', onScroll, { passive: true })
+    if (barraRef.value) {
+      ro = new ResizeObserver(medirBarra)
+      ro.observe(barraRef.value)
+    }
+    medirBarra()
   })
 })
 onUnmounted(() => {
@@ -603,6 +620,7 @@ onUnmounted(() => {
   window.removeEventListener('touchmove', onTouchMove)
   window.removeEventListener('touchend', onTouchEnd)
   contenedorScroll?.removeEventListener('scroll', onScroll)
+  ro?.disconnect()
 })
 </script>
 
@@ -656,11 +674,13 @@ onUnmounted(() => {
       </div>
 
       <!-- Tarjetas de acción: pegadas arriba y compactas al hacer scroll.
-           El wrapper sticky lleva fondo opaco para tapar lo que pasa por debajo,
-           y un ligero borde/sombra que sólo aparece cuando ya está compacto. -->
+           Fondo TOTALMENTE opaco para que nada se transparente por detrás, y
+           una sombra/borde que aparece al compactarse para separarla del contenido.
+           El encabezado de la tabla se pega justo debajo (ver --barra-h). -->
       <div
-        class="sticky top-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-1 pb-4 mb-4 bg-default/85 backdrop-blur transition-shadow duration-300"
-        :class="{ 'shadow-sm border-b border-default': compacto }"
+        ref="barraRef"
+        class="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-3 mb-4 bg-default transition-shadow duration-300"
+        :class="compacto ? 'shadow-md border-b border-default' : ''"
       >
         <div class="grid grid-cols-12 gap-4">
           <div
@@ -974,11 +994,13 @@ onUnmounted(() => {
           :data="historialFiltrado"
           :columns="columns"
           :loading="loading"
+          sticky="header"
           class="text-xs"
           :ui="{
             base: 'table-fixed w-full',
+            thead: 'top-[var(--barra-h,84px)] z-20 shadow-sm',
             td: 'text-sm py-2',
-            th: 'text-xs py-2'
+            th: 'text-xs py-2 bg-default'
           }"
         >
           <!-- Carga: filas fantasma en vez de un spinner suelto. Da sensación
