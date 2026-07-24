@@ -575,23 +575,17 @@ const openDialog = (type) => {
 // El estado se activa pasado un umbral y se libera antes de soltarlo, para que
 // no parpadee justo en el borde (histéresis).
 const compacto = ref(false)
-const barraRef = ref(null)      // barra de acciones pegada arriba
-let contenedorScroll = null
-let ro = null                    // observa el alto de la barra
+const barraRef = ref(null)       // barra de acciones pegada arriba
+const centinelaRef = ref(null)   // marca el tope del contenido
+let ro = null                     // observa el alto de la barra
+let io = null                     // detecta cuándo ya hiciste scroll
 
-const onScroll = () => {
-  const y = contenedorScroll ? contenedorScroll.scrollTop : 0
-  if (!compacto.value && y > 60) compacto.value = true
-  else if (compacto.value && y < 30) compacto.value = false
-}
-
-// Publica el alto real de la barra como variable CSS (--barra-h) sobre el
-// contenedor de scroll, para que el encabezado de la tabla se pegue JUSTO
-// debajo de ella y no quede tapado. Se recalcula sola cuando la barra cambia
-// de tamaño (al compactarse) gracias al ResizeObserver.
+// Publica el alto real de la barra como --barra-h en el <html>, para que el
+// encabezado de la tabla (sticky) se ancle JUSTO debajo de la barra y no quede
+// tapado. Se recalcula solo cuando la barra cambia de tamaño (al compactarse).
 const medirBarra = () => {
-  if (barraRef.value && contenedorScroll) {
-    contenedorScroll.style.setProperty('--barra-h', barraRef.value.offsetHeight + 'px')
+  if (barraRef.value) {
+    document.documentElement.style.setProperty('--barra-h', barraRef.value.offsetHeight + 'px')
   }
 }
 
@@ -603,11 +597,17 @@ onMounted(() => {
   window.addEventListener('touchmove', onTouchMove, { passive: true })
   window.addEventListener('touchend', onTouchEnd)
 
-  // El scroll del dashboard vive en el body del panel, no en window.
   nextTick(() => {
-    contenedorScroll = document.querySelector('#tesoreria-caja-chica [data-slot="body"]')
-      || document.querySelector('[data-slot="body"]')
-    contenedorScroll?.addEventListener('scroll', onScroll, { passive: true })
+    // La barra se compacta cuando el centinela (hasta arriba del contenido)
+    // sale de la vista al hacer scroll. Al observar contra el viewport no hay
+    // que saber cuál elemento scrollea: funciona sin importar el layout.
+    if (centinelaRef.value) {
+      io = new IntersectionObserver(
+        ([e]) => { compacto.value = !e.isIntersecting },
+        { threshold: 0 }
+      )
+      io.observe(centinelaRef.value)
+    }
     if (barraRef.value) {
       ro = new ResizeObserver(medirBarra)
       ro.observe(barraRef.value)
@@ -619,8 +619,8 @@ onUnmounted(() => {
   window.removeEventListener('touchstart', onTouchStart)
   window.removeEventListener('touchmove', onTouchMove)
   window.removeEventListener('touchend', onTouchEnd)
-  contenedorScroll?.removeEventListener('scroll', onScroll)
   ro?.disconnect()
+  io?.disconnect()
 })
 </script>
 
@@ -654,6 +654,9 @@ onUnmounted(() => {
     </template>
 
     <template #body>
+      <!-- Centinela: cuando sale de la vista al hacer scroll, la barra se compacta. -->
+      <div ref="centinelaRef" class="h-px w-full" aria-hidden="true" />
+
       <!-- Pull to refresh (móvil) -->
       <div
         v-if="ptr.pulling || ptr.refreshing"
@@ -995,10 +998,10 @@ onUnmounted(() => {
           :columns="columns"
           :loading="loading"
           sticky="header"
-          class="text-xs"
+          class="text-xs tabla-historial"
           :ui="{
             base: 'table-fixed w-full',
-            thead: 'top-[var(--barra-h,84px)] z-20 shadow-sm',
+            thead: 'z-20 shadow-sm',
             td: 'text-sm py-2',
             th: 'text-xs py-2 bg-default'
           }"
@@ -1601,3 +1604,15 @@ onUnmounted(() => {
     </template>
   </UDashboardPanel>
 </template>
+
+<style scoped>
+/* El encabezado de la tabla del historial se pega justo debajo de la barra de
+   acciones. Su alto real vive en --barra-h (lo mide la vista en vivo); si por
+   algo falta, cae a un valor seguro. Se fija aquí con CSS directo para no
+   depender de qué clases de Nuxt UI terminen ganando. */
+.tabla-historial :deep(thead) {
+  position: sticky;
+  top: var(--barra-h, 84px);
+  z-index: 20;
+}
+</style>
