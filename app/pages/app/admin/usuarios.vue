@@ -15,7 +15,17 @@ const savingDialog = ref(false)
 const selectedUser = ref(null)
 
 // Datos editables del diálogo
-const edit = ref({ FullName: '', Email: '', RoleID: null, IsActive: true, CanSwitchCompany: false, CanEditOrgChart: false })
+const edit = ref({ FullName: '', Email: '', RoleID: null, IsActive: true, CanSwitchCompany: false, CanEditOrgChart: false,
+  JobTitle: '', Department: '', EntryDate: '', ManagerID: null })
+
+// Opciones de jefe: la misma plantilla, para que el organigrama que se arma
+// aquí sea el mismo que en vacaciones.
+const jefes = ref([])
+const opcionesJefe = computed(() =>
+  jefes.value
+    .filter(j => j.EmployeeID !== selectedUser.value?.EmployeeID)
+    .map(j => ({ label: j.NombreCompleto, descripcion: j.JobTitle, value: j.EmployeeID }))
+)
 const erroresEdit = ref({ FullName: '', Email: '' })
 // Vendedores asignados (por empresa) y disponibles (por empresa) para el usuario en edición
 const assignedByCompany = ref({}) // { SBOINOVA: ['Juan', ...], SBOMIKNE: [...], SBOLOG: [...] }
@@ -84,12 +94,16 @@ const filteredUsers = computed(() => {
 const fetchUsers = async () => {
   loading.value = true
   try {
-    const [u, r] = await Promise.all([
+    const [u, r, cat] = await Promise.all([
       axios.get('/admin/users-admin'),
-      axios.get('/admin/users-admin/roles')
+      axios.get('/admin/users-admin/roles'),
+      // El catálogo de jefes sale de gestión de vacaciones: misma fuente que el
+      // organigrama, para que los datos cuadren.
+      axios.get('/rh/gestion-vacaciones/catalogos').catch(() => ({ data: {} }))
     ])
     users.value = u.data
     roles.value = r.data
+    jefes.value = cat.data?.jefes || []
   } catch (e) {
     console.error(e)
   } finally {
@@ -105,7 +119,12 @@ const openEdit = async (user) => {
     RoleID: user.RoleID,
     IsActive: !!user.IsActive,
     CanSwitchCompany: !!user.CanSwitchCompany,
-    CanEditOrgChart: !!user.CanEditOrgChart
+    CanEditOrgChart: !!user.CanEditOrgChart,
+    // Datos de RH: sólo aplican si la persona tiene ficha de empleado.
+    JobTitle: user.JobTitle || '',
+    Department: user.Department || '',
+    EntryDate: user.EntryDate ? String(user.EntryDate).slice(0, 10) : '',
+    ManagerID: user.ManagerID ?? null
   }
   erroresEdit.value = { FullName: '', Email: '' }
   assignedByCompany.value = {}
@@ -495,6 +514,52 @@ onMounted(fetchUsers)
                     label="Puede editar el organigrama"
                   />
                 </UTooltip>
+              </div>
+            </div>
+
+            <USeparator />
+
+            <!-- Datos de empleado (RH). Son los mismos que se ven en Gestión de
+                 Vacaciones: editarlos aquí los actualiza allá y viceversa. Sólo
+                 tienen efecto si la persona tiene ficha de empleado. -->
+            <div>
+              <div class="flex items-center gap-2 mb-3">
+                <UIcon name="i-mdi-badge-account-horizontal-outline" class="size-5 text-primary" />
+                <span class="font-semibold text-highlighted">Datos de empleado</span>
+                <span v-if="!selectedUser?.EmployeeID" class="text-xs text-muted">
+                  · esta cuenta no tiene ficha de empleado
+                </span>
+              </div>
+              <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-12 md:col-span-6">
+                  <UFormField label="Puesto">
+                    <UInput v-model="edit.JobTitle" :disabled="!selectedUser?.EmployeeID" class="w-full" />
+                  </UFormField>
+                </div>
+                <div class="col-span-12 md:col-span-6">
+                  <UFormField label="Área">
+                    <UInput v-model="edit.Department" :disabled="!selectedUser?.EmployeeID" class="w-full" />
+                  </UFormField>
+                </div>
+                <div class="col-span-12 md:col-span-6">
+                  <UFormField label="Fecha de ingreso" help="Al cambiarla se recalculan los periodos de vacaciones.">
+                    <UInput v-model="edit.EntryDate" type="date" :disabled="!selectedUser?.EmployeeID" class="w-full" />
+                  </UFormField>
+                </div>
+                <div class="col-span-12 md:col-span-6">
+                  <UFormField label="Jefe directo">
+                    <USelectMenu
+                      v-model="edit.ManagerID"
+                      :items="opcionesJefe"
+                      value-key="value"
+                      placeholder="Sin asignar"
+                      :search-input="{ placeholder: 'Buscar persona...' }"
+                      icon="i-mdi-account-tie-outline"
+                      :disabled="!selectedUser?.EmployeeID"
+                      class="w-full"
+                    />
+                  </UFormField>
+                </div>
               </div>
             </div>
 
