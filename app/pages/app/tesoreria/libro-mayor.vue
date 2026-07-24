@@ -336,8 +336,8 @@ onMounted(load)
 </script>
 
 <template>
-  <!-- `overflow-hidden` en el body: la página no scrollea, sólo la tabla. -->
-  <UDashboardPanel id="tesoreria-libro-mayor" :ui="{ body: 'overflow-hidden' }">
+  <!-- La página scrollea; el encabezado de la tabla se queda fijo arriba. -->
+  <UDashboardPanel id="tesoreria-libro-mayor">
     <template #header>
       <UDashboardNavbar title="Libro Mayor">
         <template #leading>
@@ -360,11 +360,9 @@ onMounted(load)
     </template>
 
     <template #body>
-      <!-- La tarjeta ocupa el espacio restante; sólo la tabla scrollea. -->
-      <UCard
-        class="flex-1 min-h-0 flex flex-col"
-        :ui="{ header: 'shrink-0', body: 'p-0 sm:p-0 flex-1 min-h-0 flex flex-col' }"
-      >
+      <!-- La tarjeta crece con su contenido; el scroll es el de la página.
+           overflow-visible para no atrapar el sticky del encabezado. -->
+      <UCard :ui="{ root: 'overflow-visible', body: 'p-0 sm:p-0' }">
         <template #header>
           <div class="flex items-center flex-wrap gap-2">
             <UIcon name="i-mdi-book-open-variant" class="size-5 text-primary" />
@@ -387,7 +385,7 @@ onMounted(load)
 
         <!-- Barra de filtros superior: búsqueda global, rejilla de filtros y
              chips de lo que está activo. Misma experiencia que el pipeline. -->
-        <div class="p-4 bg-elevated/30 border-b border-default shrink-0">
+        <div class="p-4 bg-elevated/30 border-b border-default">
           <UInput
             v-model="search"
             icon="i-mdi-magnify"
@@ -536,8 +534,15 @@ onMounted(load)
           :columns="columns"
           :loading="loading"
           sticky="header"
-          class="text-xs flex-1 min-h-0 overflow-y-auto"
-          :ui="{ base: 'table-fixed w-full', tr: 'cursor-pointer', td: 'text-xs py-2', th: 'text-xs py-2' }"
+          class="text-xs tabla-mayor"
+          :ui="{
+            root: 'overflow-visible',
+            base: 'table-fixed w-full overflow-visible',
+            thead: 'bg-default backdrop-blur-none shadow-sm',
+            tr: 'cursor-pointer',
+            td: 'text-xs py-2',
+            th: 'text-xs py-2 bg-default'
+          }"
           @select="(_e, row) => onRow(row)"
         >
           <!-- Filtros por columna -->
@@ -1164,3 +1169,16 @@ onMounted(load)
     </template>
   </UDashboardPanel>
 </template>
+
+<style scoped>
+/* El encabezado de la tabla se queda fijo arriba al hacer scroll de la página.
+   Se fija con CSS directo para no depender de qué clases de Nuxt UI ganen; los
+   contenedores que lo envuelven van en overflow-visible para no atrapar el
+   sticky (si no, el encabezado se pega dentro de un elemento que se va con el
+   scroll y desaparece). */
+.tabla-mayor :deep(thead) {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+</style>

@@ -397,7 +397,11 @@ const validateForm = () => {
 }
 
 // --- API: GUARDAR DATOS ---
+// `guardando` bloquea reentradas: mientras un guardado está en vuelo, un segundo
+// clic no dispara otro POST. Es la primera línea contra operaciones duplicadas.
+const guardando = ref(false)
 const saveOperation = async () => {
+  if (guardando.value) return
   if (!validateForm()) return
 
   const esIngreso = dialog.value.type === 'ingreso'
@@ -420,9 +424,11 @@ const saveOperation = async () => {
     return
   }
 
+  guardando.value = true
   try {
     const subcatFinal = isManualSub.value ? editedItem.value.subcategoriaManual : editedItem.value.subcategoria
     const payload = {
+      idempotencyKey: dialog.value.idem,
       monto: parseFloat(editedItem.value.monto),
       concepto: editedItem.value.concepto,
       usuario: authStore.user?.name || 'Usuario',
@@ -466,6 +472,8 @@ const saveOperation = async () => {
   } catch (error) {
     console.error('Error guardando:', error)
     toast.add({ title: error.response?.data?.message || 'Error al guardar operación', color: 'error' })
+  } finally {
+    guardando.value = false
   }
 }
 
@@ -557,8 +565,16 @@ const getTypeColor = (type) => {
   return 'warning'
 }
 
+// Llave única por apertura del diálogo. Se manda al backend para que, si por un
+// doble clic o un reintento de red llega dos veces la MISMA operación, sólo se
+// registre una (idempotencia). Cada operación nueva abre el diálogo -> llave
+// nueva, así que dos operaciones iguales a propósito sí se guardan las dos.
+const nuevaLlave = () =>
+  (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`)
+
 const openDialog = (type) => {
   dialog.value.type = type
+  dialog.value.idem = nuevaLlave()
   formErrors.value = {}
   editedItem.value = {
     monto: null, concepto: '', sobreOrigen: null, sobreDestino: null,
@@ -1476,7 +1492,12 @@ onUnmounted(() => {
             <UButton color="neutral" variant="ghost" @click="dialog.show = false">
               Cancelar
             </UButton>
-            <UButton :color="dialogColor" :disabled="excedeSaldo" @click="saveOperation">
+            <UButton
+              :color="dialogColor"
+              :disabled="excedeSaldo || guardando"
+              :loading="guardando"
+              @click="saveOperation"
+            >
               Guardar Operación
             </UButton>
           </div>
