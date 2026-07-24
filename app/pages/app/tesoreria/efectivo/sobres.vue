@@ -570,6 +570,19 @@ const openDialog = (type) => {
   dialog.value.show = true
 }
 
+// --- Barra de acciones que se encoge al hacer scroll -----------------------
+// Al bajar en la página, las tarjetas de acción se pegan arriba y se compactan.
+// El estado se activa pasado un umbral y se libera antes de soltarlo, para que
+// no parpadee justo en el borde (histéresis).
+const compacto = ref(false)
+let contenedorScroll = null
+
+const onScroll = () => {
+  const y = contenedorScroll ? contenedorScroll.scrollTop : 0
+  if (!compacto.value && y > 60) compacto.value = true
+  else if (compacto.value && y < 30) compacto.value = false
+}
+
 onMounted(() => {
   fetchOperations()
   fetchCatalogos()
@@ -577,19 +590,27 @@ onMounted(() => {
   window.addEventListener('touchstart', onTouchStart, { passive: true })
   window.addEventListener('touchmove', onTouchMove, { passive: true })
   window.addEventListener('touchend', onTouchEnd)
+
+  // El scroll del dashboard vive en el body del panel, no en window.
+  nextTick(() => {
+    contenedorScroll = document.querySelector('#tesoreria-caja-chica [data-slot="body"]')
+      || document.querySelector('[data-slot="body"]')
+    contenedorScroll?.addEventListener('scroll', onScroll, { passive: true })
+  })
 })
 onUnmounted(() => {
   window.removeEventListener('touchstart', onTouchStart)
   window.removeEventListener('touchmove', onTouchMove)
   window.removeEventListener('touchend', onTouchEnd)
+  contenedorScroll?.removeEventListener('scroll', onScroll)
 })
 </script>
 
 <template>
-  <!-- En escritorio la página no scrollea (sólo la tabla). En móvil se conserva
-       el scroll normal de la página: la vista de tarjetas y el pull-to-refresh
-       dependen del scroll de window. -->
-  <UDashboardPanel id="tesoreria-caja-chica" :ui="{ body: 'lg:overflow-hidden' }">
+  <!-- La página scrollea (escritorio y móvil). La barra de acciones se queda
+       pegada arriba y se compacta al bajar. El pull-to-refresh de móvil sigue
+       dependiendo del scroll de window. -->
+  <UDashboardPanel id="tesoreria-caja-chica">
     <template #header>
       <UDashboardNavbar title="Caja Chica - Operaciones">
         <template #leading>
@@ -634,38 +655,52 @@ onUnmounted(() => {
         />
       </div>
 
-      <!-- Tarjetas de acción -->
-      <div class="grid grid-cols-12 gap-4 mb-4 lg:shrink-0">
-        <div
-          v-for="c in accionCards"
-          :key="c.tipo"
-          class="col-span-6 md:col-span-3"
-        >
-          <UCard
-            class="h-full cursor-pointer transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
-            :class="accionBorde[c.color]"
-            :ui="{ body: smAndDown ? 'p-4' : 'p-5' }"
-            @click="c.tipo === 'saldos' ? openSaldos() : openDialog(c.tipo)"
+      <!-- Tarjetas de acción: pegadas arriba y compactas al hacer scroll.
+           El wrapper sticky lleva fondo opaco para tapar lo que pasa por debajo,
+           y un ligero borde/sombra que sólo aparece cuando ya está compacto. -->
+      <div
+        class="sticky top-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-1 pb-4 mb-4 bg-default/85 backdrop-blur transition-shadow duration-300"
+        :class="{ 'shadow-sm border-b border-default': compacto }"
+      >
+        <div class="grid grid-cols-12 gap-4">
+          <div
+            v-for="c in accionCards"
+            :key="c.tipo"
+            class="col-span-6 md:col-span-3"
           >
-            <div class="flex items-center" :class="smAndDown ? 'gap-3' : 'gap-4'">
-              <UButton
-                :icon="c.icon"
-                :color="c.color"
-                variant="solid"
-                square
-                :size="smAndDown ? 'sm' : 'md'"
-                class="pointer-events-none"
-              />
-              <div>
-                <h2 class="font-bold text-highlighted" :class="smAndDown ? 'text-base' : 'text-2xl'">
-                  {{ c.label }}
-                </h2>
-                <p v-if="!smAndDown" class="text-muted mt-1 text-sm">
-                  {{ c.sub }}
-                </p>
+            <UCard
+              class="h-full cursor-pointer transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
+              :class="accionBorde[c.color]"
+              :ui="{ body: (smAndDown || compacto) ? 'p-3 transition-all duration-300' : 'p-5 transition-all duration-300' }"
+              @click="c.tipo === 'saldos' ? openSaldos() : openDialog(c.tipo)"
+            >
+              <div class="flex items-center" :class="(smAndDown || compacto) ? 'gap-3' : 'gap-4'">
+                <UButton
+                  :icon="c.icon"
+                  :color="c.color"
+                  variant="solid"
+                  square
+                  :size="(smAndDown || compacto) ? 'sm' : 'md'"
+                  class="pointer-events-none"
+                />
+                <div class="min-w-0">
+                  <h2
+                    class="font-bold text-highlighted truncate transition-all duration-300"
+                    :class="(smAndDown || compacto) ? 'text-base' : 'text-2xl'"
+                  >
+                    {{ c.label }}
+                  </h2>
+                  <p
+                    v-if="!smAndDown"
+                    class="text-muted text-sm overflow-hidden transition-all duration-300"
+                    :class="compacto ? 'max-h-0 opacity-0 mt-0' : 'max-h-8 opacity-100 mt-1'"
+                  >
+                    {{ c.sub }}
+                  </p>
+                </div>
               </div>
-            </div>
-          </UCard>
+            </UCard>
+          </div>
         </div>
       </div>
 
@@ -726,10 +761,10 @@ onUnmounted(() => {
       </div>
 
       <!-- Historial -->
-      <!-- En escritorio la tarjeta toma el alto restante y sólo la tabla scrollea. -->
+      <!-- La tarjeta crece con su contenido; el scroll es el de la página. -->
       <UCard
-        class="mt-4 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col"
-        :ui="{ header: 'lg:shrink-0', body: 'p-0 sm:p-0 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col' }"
+        class="mt-4"
+        :ui="{ body: 'p-0 sm:p-0' }"
       >
         <template #header>
           <div class="flex items-center flex-wrap gap-2">
@@ -939,8 +974,7 @@ onUnmounted(() => {
           :data="historialFiltrado"
           :columns="columns"
           :loading="loading"
-          sticky="header"
-          class="text-xs flex-1 min-h-0 overflow-y-auto"
+          class="text-xs"
           :ui="{
             base: 'table-fixed w-full',
             td: 'text-sm py-2',
