@@ -784,10 +784,11 @@ onUnmounted(() => {
       </div>
 
       <!-- Historial -->
-      <!-- La tarjeta crece con su contenido; el scroll es el de la página. -->
+      <!-- La tarjeta crece con su contenido; el scroll es el de la página.
+           overflow-visible en el root para no atrapar el sticky del encabezado. -->
       <UCard
         class="mt-4"
-        :ui="{ body: 'p-0 sm:p-0' }"
+        :ui="{ root: 'overflow-visible', body: 'p-0 sm:p-0' }"
       >
         <template #header>
           <div class="flex items-center flex-wrap gap-2">
@@ -1000,8 +1001,9 @@ onUnmounted(() => {
           sticky="header"
           class="text-xs tabla-historial"
           :ui="{
-            base: 'table-fixed w-full',
-            thead: 'z-20 shadow-sm',
+            root: 'overflow-visible',
+            base: 'table-fixed w-full overflow-visible',
+            thead: 'z-20 shadow-sm bg-default backdrop-blur-none',
             td: 'text-sm py-2',
             th: 'text-xs py-2 bg-default'
           }"
