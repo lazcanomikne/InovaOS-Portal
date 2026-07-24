@@ -53,10 +53,13 @@ const getEventsForDay = (day) => {
   const checkDate = new Date(currentYear.value, currentMonth.value, day)
   checkDate.setHours(0, 0, 0, 0)
   return events.value.filter((e) => {
-    const start = new Date(e.StartDate)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(e.EndDate)
-    end.setHours(0, 0, 0, 0)
+    // Fechas DATE: se arman en hora local (aFechaLocal), igual que checkDate.
+    // Con new Date() crudo se interpretaban como medianoche UTC y en Mexico
+    // (UTC-6) la solicitud caia un dia antes en el calendario: una del 24
+    // aparecia bajo el 23. aFechaLocal toma solo YYYY-MM-DD sin corrimiento.
+    const start = aFechaLocal(e.StartDate)
+    const end = aFechaLocal(e.EndDate)
+    if (!start || !end) return false
     return checkDate >= start && checkDate <= end
   })
 }

@@ -1,6 +1,7 @@
 <script setup>
 // Calendario de Equipo: rejilla mensual con las ausencias del equipo.
 import { ref, computed } from 'vue'
+import { aFechaLocal } from '~/utils/fechas'
 
 const today = new Date()
 const currentMonth = ref(today.getMonth())
@@ -37,11 +38,11 @@ const changeMonth = (step) => {
 const getEventsForDay = (day) => {
   const checkDate = new Date(currentYear.value, currentMonth.value, day)
   return events.value.filter((e) => {
-    const start = new Date(e.start)
-    const end = new Date(e.end)
-    // Reset hours para comparar solo fechas
-    start.setHours(0, 0, 0, 0)
-    end.setHours(0, 0, 0, 0)
+    // Fechas DATE en hora local (aFechaLocal), sin corrimiento por UTC, para
+    // que la ausencia caiga en el dia correcto del calendario.
+    const start = aFechaLocal(e.start)
+    const end = aFechaLocal(e.end)
+    if (!start || !end) return false
     checkDate.setHours(0, 0, 0, 0)
     return checkDate >= start && checkDate <= end
   })
