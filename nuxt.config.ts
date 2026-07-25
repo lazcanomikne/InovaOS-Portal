@@ -70,6 +70,11 @@ export default defineNuxtConfig({
     workbox: {
       globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
       cleanupOutdatedCaches: true,
+      // El SW nuevo toma control de inmediato en vez de quedarse "en espera"
+      // hasta cerrar todas las pestanas. Junto con el plugin de revision
+      // periodica, un deploy nuevo se aplica solo (sin Ctrl+Shift+R).
+      skipWaiting: true,
+      clientsClaim: true,
       importScripts: ['/push-sw.js'],
       // El login y la sesión nunca se cachean: siempre contra el backend.
       runtimeCaching: [
