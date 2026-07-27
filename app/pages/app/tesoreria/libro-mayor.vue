@@ -176,12 +176,13 @@ const filteredOrdenado = computed(() =>
 // al renderizar. -1 = "Todas". La pagina se reinicia cuando cambian los
 // filtros o el tamano de pagina, para no quedar en una pagina inexistente.
 const filasPorPaginaItems = [
+  { label: '10', value: 10 },
   { label: '20', value: 20 },
   { label: '50', value: 50 },
   { label: '100', value: 100 },
   { label: 'Todas', value: -1 }
 ]
-const filasPorPagina = ref(20)
+const filasPorPagina = ref(10)
 const pagina = ref(1)
 const totalFilas = computed(() => filteredOrdenado.value.length)
 const tamPagina = computed(() => filasPorPagina.value === -1 ? (totalFilas.value || 1) : filasPorPagina.value)

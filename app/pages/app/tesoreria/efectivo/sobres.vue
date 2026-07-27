@@ -335,12 +335,13 @@ const historialFiltrado = computed(() => {
 // actual (20 por omision), no las miles del historico. -1 = "Todas". La pagina
 // se reinicia al cambiar filtros o tamano de pagina.
 const histFilasItems = [
+  { label: '10', value: 10 },
   { label: '20', value: 20 },
   { label: '50', value: 50 },
   { label: '100', value: 100 },
   { label: 'Todas', value: -1 }
 ]
-const histFilasPorPagina = ref(20)
+const histFilasPorPagina = ref(10)
 const histPagina = ref(1)
 const histTotal = computed(() => historialFiltrado.value.length)
 const histTamPagina = computed(() => histFilasPorPagina.value === -1 ? (histTotal.value || 1) : histFilasPorPagina.value)
