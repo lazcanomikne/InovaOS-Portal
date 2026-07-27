@@ -351,7 +351,6 @@ const historialPaginado = computed(() => {
 })
 const histDesde = computed(() => histTotal.value === 0 ? 0 : (histPagina.value - 1) * histTamPagina.value + 1)
 const histHasta = computed(() => Math.min(histPagina.value * histTamPagina.value, histTotal.value))
-watch([historialFiltrado, histFilasPorPagina], () => { histPagina.value = 1 })
 
 // --- API: CARGAR DATOS ---
 const fetchOperations = async () => {
@@ -510,6 +509,12 @@ const transactionsWithBalance = computed(() => {
     return { ...t, saldo: saldoAcumulado }
   }).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 })
+
+// Reinicia la pagina del historial al cambiar filtros o tamano de pagina. Va
+// aqui (y no junto a los computeds de paginacion) porque el watch evalua su
+// fuente de inmediato y historialFiltrado depende de transactionsWithBalance,
+// que se define en este punto: colocarlo antes daba un error de TDZ.
+watch([historialFiltrado, histFilasPorPagina], () => { histPagina.value = 1 })
 
 const globalBalance = computed(() => {
   if (transactionsWithBalance.value.length === 0) return 0
