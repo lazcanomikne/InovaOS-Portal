@@ -171,6 +171,29 @@ const filtered = computed(() => {
 const filteredOrdenado = computed(() =>
   [...filtered.value].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)))
 
+// Paginacion del lado del cliente. La data ya viene filtrada; aqui solo se
+// decide cuantas filas se PINTAN a la vez (20 por omision), que es lo que pesa
+// al renderizar. -1 = "Todas". La pagina se reinicia cuando cambian los
+// filtros o el tamano de pagina, para no quedar en una pagina inexistente.
+const filasPorPaginaItems = [
+  { label: '20', value: 20 },
+  { label: '50', value: 50 },
+  { label: '100', value: 100 },
+  { label: 'Todas', value: -1 }
+]
+const filasPorPagina = ref(20)
+const pagina = ref(1)
+const totalFilas = computed(() => filteredOrdenado.value.length)
+const tamPagina = computed(() => filasPorPagina.value === -1 ? (totalFilas.value || 1) : filasPorPagina.value)
+const paginated = computed(() => {
+  if (filasPorPagina.value === -1) return filteredOrdenado.value
+  const ini = (pagina.value - 1) * filasPorPagina.value
+  return filteredOrdenado.value.slice(ini, ini + filasPorPagina.value)
+})
+const rangoDesde = computed(() => totalFilas.value === 0 ? 0 : (pagina.value - 1) * tamPagina.value + 1)
+const rangoHasta = computed(() => Math.min(pagina.value * tamPagina.value, totalFilas.value))
+watch([filteredOrdenado, filasPorPagina], () => { pagina.value = 1 })
+
 const load = async () => {
   loading.value = true
   try {
@@ -530,7 +553,7 @@ onMounted(load)
         </div>
 
         <UTable
-          :data="filteredOrdenado"
+          :data="paginated"
           :columns="columns"
           :loading="loading"
           sticky="header"
@@ -883,6 +906,35 @@ onMounted(load)
             </div>
           </template>
         </UTable>
+
+        <!-- Paginacion: filas por pagina + rango + navegador. Solo se pintan
+             las filas de la pagina actual, no las miles del historico. -->
+        <div
+          v-if="totalFilas > 0"
+          class="flex flex-wrap items-center justify-between gap-3 p-3 border-t border-default bg-elevated/20"
+        >
+          <div class="flex items-center gap-2 text-sm text-muted">
+            <span class="whitespace-nowrap">Filas por página</span>
+            <USelect
+              v-model="filasPorPagina"
+              :items="filasPorPaginaItems"
+              class="w-24"
+            />
+          </div>
+
+          <div class="text-xs text-muted order-last w-full text-center sm:order-none sm:w-auto">
+            Mostrando {{ rangoDesde }}–{{ rangoHasta }} de {{ totalFilas }}
+          </div>
+
+          <UPagination
+            v-if="filasPorPagina !== -1"
+            v-model:page="pagina"
+            :total="totalFilas"
+            :items-per-page="tamPagina"
+            :sibling-count="1"
+            show-edges
+          />
+        </div>
       </UCard>
 
       <!-- DETALLE -->

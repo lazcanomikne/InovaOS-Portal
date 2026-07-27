@@ -331,6 +331,28 @@ const historialFiltrado = computed(() => {
   })
 })
 
+// Paginacion del historial (cliente). Solo se pintan las filas de la pagina
+// actual (20 por omision), no las miles del historico. -1 = "Todas". La pagina
+// se reinicia al cambiar filtros o tamano de pagina.
+const histFilasItems = [
+  { label: '20', value: 20 },
+  { label: '50', value: 50 },
+  { label: '100', value: 100 },
+  { label: 'Todas', value: -1 }
+]
+const histFilasPorPagina = ref(20)
+const histPagina = ref(1)
+const histTotal = computed(() => historialFiltrado.value.length)
+const histTamPagina = computed(() => histFilasPorPagina.value === -1 ? (histTotal.value || 1) : histFilasPorPagina.value)
+const historialPaginado = computed(() => {
+  if (histFilasPorPagina.value === -1) return historialFiltrado.value
+  const ini = (histPagina.value - 1) * histFilasPorPagina.value
+  return historialFiltrado.value.slice(ini, ini + histFilasPorPagina.value)
+})
+const histDesde = computed(() => histTotal.value === 0 ? 0 : (histPagina.value - 1) * histTamPagina.value + 1)
+const histHasta = computed(() => Math.min(histPagina.value * histTamPagina.value, histTotal.value))
+watch([historialFiltrado, histFilasPorPagina], () => { histPagina.value = 1 })
+
 // --- API: CARGAR DATOS ---
 const fetchOperations = async () => {
   try {
@@ -975,7 +997,7 @@ onUnmounted(() => {
             />
           </div>
           <UCard
-            v-for="t in historialFiltrado"
+            v-for="t in historialPaginado"
             :key="t.id"
             class="mb-2"
             :ui="{ body: 'py-3 px-4' }"
@@ -1011,7 +1033,7 @@ onUnmounted(() => {
         <!-- Desktop: tabla -->
         <UTable
           v-else
-          :data="historialFiltrado"
+          :data="historialPaginado"
           :columns="columns"
           :loading="loading"
           sticky="header"
@@ -1255,6 +1277,35 @@ onUnmounted(() => {
             <strong class="text-primary whitespace-nowrap">{{ formatCurrency(row.original.saldo) }}</strong>
           </template>
         </UTable>
+
+        <!-- Paginacion: filas por pagina + rango + navegador. Aplica a la lista
+             movil y a la tabla de escritorio. -->
+        <div
+          v-if="histTotal > 0"
+          class="flex flex-wrap items-center justify-between gap-3 p-3 border-t border-default bg-elevated/20"
+        >
+          <div class="flex items-center gap-2 text-sm text-muted">
+            <span class="whitespace-nowrap">Filas por página</span>
+            <USelect
+              v-model="histFilasPorPagina"
+              :items="histFilasItems"
+              class="w-24"
+            />
+          </div>
+
+          <div class="text-xs text-muted order-last w-full text-center sm:order-none sm:w-auto">
+            Mostrando {{ histDesde }}–{{ histHasta }} de {{ histTotal }}
+          </div>
+
+          <UPagination
+            v-if="histFilasPorPagina !== -1"
+            v-model:page="histPagina"
+            :total="histTotal"
+            :items-per-page="histTamPagina"
+            :sibling-count="1"
+            show-edges
+          />
+        </div>
       </UCard>
 
       <!-- MODAL: captura de operación -->
