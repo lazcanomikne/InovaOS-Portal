@@ -381,30 +381,35 @@ onMounted(() => {
             </UFormField>
           </div>
 
-          <!-- Filtros activos: un chip por valor, removible uno a uno -->
-          <div v-if="filtrosActivos.length" class="flex flex-wrap items-center gap-1 mt-3">
-            <span class="text-xs text-muted mr-1">Filtros activos:</span>
-            <UBadge
-              v-for="chip in filtrosActivos"
-              :key="`${chip.campo}-${chip.valor}`"
-              color="neutral"
-              variant="subtle"
-              size="sm"
-              class="max-w-52"
-            >
-              <span class="truncate">{{ chip.texto }}</span>
-              <UIcon
-                name="i-lucide-x"
-                class="size-3 ml-1 cursor-pointer shrink-0"
-                @click="quitarFiltro(chip.campo, chip.valor)"
-              />
-            </UBadge>
+          <!-- Barra de filtros activos: chips removibles + botón de limpiar
+               SIEMPRE visible (se activa cuando hay algo que limpiar). -->
+          <div class="flex flex-wrap items-center gap-1 mt-3">
+            <template v-if="filtrosActivos.length">
+              <span class="text-xs text-muted mr-1">Filtros activos:</span>
+              <UBadge
+                v-for="chip in filtrosActivos"
+                :key="`${chip.campo}-${chip.valor}`"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                class="max-w-52"
+              >
+                <span class="truncate">{{ chip.texto }}</span>
+                <UIcon
+                  name="i-lucide-x"
+                  class="size-3 ml-1 cursor-pointer shrink-0"
+                  @click="quitarFiltro(chip.campo, chip.valor)"
+                />
+              </UBadge>
+            </template>
+            <div class="flex-1" />
             <UButton
               color="neutral"
-              variant="link"
+              variant="soft"
               size="xs"
-              label="Limpiar todo"
-              icon="i-lucide-circle-x"
+              label="Limpiar filtros"
+              icon="i-lucide-filter-x"
+              :disabled="!hayFiltros"
               @click="limpiarFiltros"
             />
           </div>

@@ -157,23 +157,34 @@ onMounted(fetchOpportunities)
         :ui="{ body: 'p-0 sm:p-0 flex-1 min-h-0 flex flex-col', header: 'shrink-0' }"
       >
         <template #header>
-          <UInput
-            v-model="search"
-            icon="i-mdi-magnify"
-            placeholder="Buscar (ID, nombre, cliente)"
-            class="w-full"
-            :ui="{ trailing: 'pe-1' }"
-          >
-            <template v-if="search" #trailing>
-              <UButton
-                color="neutral"
-                variant="link"
-                icon="i-lucide-circle-x"
-                aria-label="Limpiar búsqueda"
-                @click="search = ''"
-              />
-            </template>
-          </UInput>
+          <div class="flex items-center gap-2">
+            <UInput
+              v-model="search"
+              icon="i-mdi-magnify"
+              placeholder="Buscar (ID, nombre, cliente)"
+              class="flex-1"
+              :ui="{ trailing: 'pe-1' }"
+            >
+              <template v-if="search" #trailing>
+                <UButton
+                  color="neutral"
+                  variant="link"
+                  icon="i-lucide-circle-x"
+                  aria-label="Limpiar búsqueda"
+                  @click="search = ''"
+                />
+              </template>
+            </UInput>
+            <UButton
+              color="neutral"
+              variant="soft"
+              size="sm"
+              label="Limpiar filtros"
+              icon="i-lucide-filter-x"
+              :disabled="!hayFiltros"
+              @click="limpiarFiltros"
+            />
+          </div>
         </template>
 
         <UTable
