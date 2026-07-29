@@ -462,9 +462,11 @@ onMounted(() => {
           class="flex-1 min-h-0 overflow-y-auto"
           :ui="{
             base: 'table-fixed w-full',
+            tr: 'cursor-pointer',
             td: 'text-sm py-2',
             th: 'text-xs py-2'
           }"
+          @select="(_e, row) => openDialog(row.original)"
         >
           <!-- Carga: filas fantasma en vez de un spinner suelto. Da sensación
                de rapidez porque la estructura aparece de inmediato. -->
