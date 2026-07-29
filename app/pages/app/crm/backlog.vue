@@ -132,25 +132,16 @@ const columns = headers.map((hdr) => {
 // para que los indicadores no parpadeen al refiltrar.
 const cargaInicial = computed(() => loading.value && !orders.value.length)
 
-// Hay filtros si la búsqueda tiene texto o alguna selección está activa.
-const hayFiltros = computed(() =>
-  !!search.value || !!filters.value.vendedor?.length || !!filters.value.stockStatus
-)
+const hayFiltros = computed(() => filtrosActivos.value.length > 0 || !!search.value)
 
-const limpiarFiltros = () => {
-  search.value = ''
-  filters.value.vendedor = []
-  filters.value.stockStatus = null
-  // El Mes vuelve al actual (reset del periodo); el Año se conserva.
-  filters.value.month = (new Date().getMonth() + 1).toString()
-  fetchBacklog()
-}
+const etiquetaMes = valor => monthOptions.find(m => m.value === valor)?.text || valor
 
-// Chips de filtros activos (misma lógica que el Pipeline): un chip por valor,
-// removible uno a uno. Año/Mes son el periodo base (siempre presentes), así que
-// no se muestran como chip; sí vendedor y estado de stock.
+// Chips de filtros activos, idéntico al Pipeline: el Mes es un chip removible
+// (quitarlo = año completo); Vendedor y Estado de stock también. El Año es la
+// base y no se muestra como chip.
 const filtrosActivos = computed(() => {
-  const chips = [];
+  const chips = []
+  if (filters.value.month) chips.push({ campo: 'month', valor: filters.value.month, texto: etiquetaMes(filters.value.month) });
   (filters.value.vendedor || []).forEach(v => chips.push({ campo: 'vendedor', valor: v, texto: v }))
   if (filters.value.stockStatus) {
     const t = stockStatusOptions.find(o => o.value === filters.value.stockStatus)?.text || filters.value.stockStatus
@@ -160,8 +151,18 @@ const filtrosActivos = computed(() => {
 })
 
 const quitarFiltro = (campo, valor) => {
-  if (campo === 'vendedor') filters.value.vendedor = filters.value.vendedor.filter(v => v !== valor)
+  if (campo === 'month') { filters.value.month = ''; fetchBacklog() }
+  else if (campo === 'vendedor') filters.value.vendedor = filters.value.vendedor.filter(v => v !== valor)
   else if (campo === 'stockStatus') filters.value.stockStatus = null
+}
+
+const limpiarFiltros = () => {
+  const teniaMes = !!filters.value.month
+  search.value = ''
+  filters.value.vendedor = []
+  filters.value.stockStatus = null
+  filters.value.month = '' // año completo (el Año se conserva)
+  if (teniaMes) fetchBacklog()
 }
 
 onMounted(fetchBacklog)
@@ -314,6 +315,7 @@ onMounted(fetchBacklog)
                   :items="monthOptions"
                   label-key="text"
                   value-key="value"
+                  placeholder="Todo el año"
                   class="w-full"
                   @update:model-value="fetchBacklog"
                 />
@@ -340,37 +342,37 @@ onMounted(fetchBacklog)
               </UFormField>
             </div>
 
-            <!-- Barra de filtros activos: chips removibles + botón de limpiar
-                 SIEMPRE visible (se activa cuando hay algo que limpiar). -->
-            <div class="flex flex-wrap items-center gap-1">
-              <template v-if="filtrosActivos.length">
-                <span class="text-xs text-muted mr-1">Filtros activos:</span>
-                <UBadge
-                  v-for="chip in filtrosActivos"
-                  :key="`${chip.campo}-${chip.valor}`"
-                  color="neutral"
-                  variant="subtle"
-                  size="sm"
-                  class="max-w-52"
-                >
-                  <span class="truncate">{{ chip.texto }}</span>
-                  <UIcon
-                    name="i-lucide-x"
-                    class="size-3 ml-1 cursor-pointer shrink-0"
-                    @click="quitarFiltro(chip.campo, chip.valor)"
-                  />
-                </UBadge>
-              </template>
-              <div class="flex-1" />
+            <!-- Filtros activos: un chip por valor, removible uno a uno. Idéntico
+                 al Pipeline. -->
+            <div v-if="filtrosActivos.length" class="flex flex-wrap items-center gap-1">
+              <span class="text-xs text-muted mr-1">Filtros activos:</span>
+              <UBadge
+                v-for="chip in filtrosActivos"
+                :key="`${chip.campo}-${chip.valor}`"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                class="max-w-52"
+              >
+                <span class="truncate">{{ chip.texto }}</span>
+                <UIcon
+                  name="i-lucide-x"
+                  class="size-3 ml-1 cursor-pointer shrink-0"
+                  @click="quitarFiltro(chip.campo, chip.valor)"
+                />
+              </UBadge>
               <UButton
                 color="neutral"
-                variant="soft"
+                variant="link"
                 size="xs"
-                label="Limpiar filtros"
-                icon="i-lucide-filter-x"
+                label="Limpiar todo"
+                icon="i-lucide-circle-x"
                 @click="limpiarFiltros"
               />
             </div>
+            <p v-else class="text-xs text-muted">
+              Sin filtros: se muestra el año {{ filters.year }} completo.
+            </p>
           </div>
         </template>
 
