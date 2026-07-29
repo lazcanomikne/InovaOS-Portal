@@ -94,6 +94,8 @@ const filteredInvoices = computed(() => {
 
 // KPIs
 const totalNetSales = computed(() => filteredInvoices.value.reduce((acc, item) => acc + item.VentaNetaMXN, 0))
+// Pendiente de pago: suma del saldo por cobrar (con IVA) de las facturas.
+const totalPendiente = computed(() => filteredInvoices.value.reduce((acc, item) => acc + (Number(item.SaldoPendiente) || 0), 0))
 const totalProfit = computed(() => filteredInvoices.value.reduce((acc, item) => acc + item.UtilidadMXN, 0))
 const appliedProfit = computed(() => {
   return filteredInvoices.value
@@ -254,11 +256,11 @@ onMounted(() => {
            (azul que se intensifica, gris para lo derivado). Los semánticos
            success/warning/error quedan para el estatus de cobranza y el margen,
            donde sí expresan un juicio sobre el dato. -->
-      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <!-- Esqueletos: sólo en la primera carga, para que no parpadeen al filtrar -->
         <template v-if="cargaInicial">
           <UCard
-            v-for="i in 5"
+            v-for="i in 6"
             :key="`kpi-skel-${i}`"
             :ui="{ body: 'text-center' }"
             class="border-t-4 border-t-default"
@@ -305,6 +307,18 @@ onMounted(() => {
             </div>
             <div class="text-[0.65rem] text-dimmed">
               Pagadas
+            </div>
+          </UCard>
+
+          <UCard :ui="{ body: 'text-center' }" class="border-t-4 border-t-warning">
+            <div class="text-xs uppercase tracking-wide text-muted mb-1">
+              Pendiente de Pago
+            </div>
+            <div class="text-xl font-bold text-warning">
+              {{ formatCurrency(totalPendiente) }}
+            </div>
+            <div class="text-[0.65rem] text-dimmed">
+              Por cobrar (con IVA)
             </div>
           </UCard>
 
