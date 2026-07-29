@@ -195,6 +195,17 @@ const limpiarFiltros = () => {
   filters.value.estatusPago = null
 }
 
+// Chips de filtros activos (misma lógica que el Pipeline): un chip por valor,
+// removible uno a uno. Año/Mes son el periodo base, no se muestran como chip.
+const filtrosActivos = computed(() => {
+  const chips = []
+  if (filters.value.vendedor) chips.push({ campo: 'vendedor', valor: filters.value.vendedor, texto: filters.value.vendedor })
+  if (filters.value.estatusPago) chips.push({ campo: 'estatusPago', valor: filters.value.estatusPago, texto: filters.value.estatusPago })
+  return chips
+})
+
+const quitarFiltro = (campo) => { filters.value[campo] = null }
+
 onMounted(() => {
   fetchInvoices()
 })
@@ -367,6 +378,34 @@ onMounted(() => {
                 class="w-full"
               />
             </UFormField>
+          </div>
+
+          <!-- Filtros activos: un chip por valor, removible uno a uno -->
+          <div v-if="filtrosActivos.length" class="flex flex-wrap items-center gap-1 mt-3">
+            <span class="text-xs text-muted mr-1">Filtros activos:</span>
+            <UBadge
+              v-for="chip in filtrosActivos"
+              :key="`${chip.campo}-${chip.valor}`"
+              color="neutral"
+              variant="subtle"
+              size="sm"
+              class="max-w-52"
+            >
+              <span class="truncate">{{ chip.texto }}</span>
+              <UIcon
+                name="i-lucide-x"
+                class="size-3 ml-1 cursor-pointer shrink-0"
+                @click="quitarFiltro(chip.campo, chip.valor)"
+              />
+            </UBadge>
+            <UButton
+              color="neutral"
+              variant="link"
+              size="xs"
+              label="Limpiar todo"
+              icon="i-lucide-circle-x"
+              @click="limpiarFiltros"
+            />
           </div>
         </div>
 

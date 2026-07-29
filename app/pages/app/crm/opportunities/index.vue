@@ -162,7 +162,18 @@ onMounted(fetchOpportunities)
             icon="i-mdi-magnify"
             placeholder="Buscar (ID, nombre, cliente)"
             class="w-full"
-          />
+            :ui="{ trailing: 'pe-1' }"
+          >
+            <template v-if="search" #trailing>
+              <UButton
+                color="neutral"
+                variant="link"
+                icon="i-lucide-circle-x"
+                aria-label="Limpiar búsqueda"
+                @click="search = ''"
+              />
+            </template>
+          </UInput>
         </template>
 
         <UTable

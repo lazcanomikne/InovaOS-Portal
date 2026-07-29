@@ -143,6 +143,24 @@ const limpiarFiltros = () => {
   filters.value.stockStatus = null
 }
 
+// Chips de filtros activos (misma lógica que el Pipeline): un chip por valor,
+// removible uno a uno. Año/Mes son el periodo base (siempre presentes), así que
+// no se muestran como chip; sí vendedor y estado de stock.
+const filtrosActivos = computed(() => {
+  const chips = [];
+  (filters.value.vendedor || []).forEach(v => chips.push({ campo: 'vendedor', valor: v, texto: v }))
+  if (filters.value.stockStatus) {
+    const t = stockStatusOptions.find(o => o.value === filters.value.stockStatus)?.text || filters.value.stockStatus
+    chips.push({ campo: 'stockStatus', valor: filters.value.stockStatus, texto: t })
+  }
+  return chips
+})
+
+const quitarFiltro = (campo, valor) => {
+  if (campo === 'vendedor') filters.value.vendedor = filters.value.vendedor.filter(v => v !== valor)
+  else if (campo === 'stockStatus') filters.value.stockStatus = null
+}
+
 onMounted(fetchBacklog)
 </script>
 
@@ -262,7 +280,18 @@ onMounted(fetchBacklog)
               icon="i-mdi-magnify"
               placeholder="Búsqueda (Cliente, Folio)"
               class="w-full"
-            />
+              :ui="{ trailing: 'pe-1' }"
+            >
+              <template v-if="search" #trailing>
+                <UButton
+                  color="neutral"
+                  variant="link"
+                  icon="i-lucide-circle-x"
+                  aria-label="Limpiar búsqueda"
+                  @click="search = ''"
+                />
+              </template>
+            </UInput>
 
             <USeparator />
 
@@ -305,6 +334,34 @@ onMounted(fetchBacklog)
                   class="w-full"
                 />
               </UFormField>
+            </div>
+
+            <!-- Filtros activos: un chip por valor, removible uno a uno -->
+            <div v-if="filtrosActivos.length" class="flex flex-wrap items-center gap-1">
+              <span class="text-xs text-muted mr-1">Filtros activos:</span>
+              <UBadge
+                v-for="chip in filtrosActivos"
+                :key="`${chip.campo}-${chip.valor}`"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                class="max-w-52"
+              >
+                <span class="truncate">{{ chip.texto }}</span>
+                <UIcon
+                  name="i-lucide-x"
+                  class="size-3 ml-1 cursor-pointer shrink-0"
+                  @click="quitarFiltro(chip.campo, chip.valor)"
+                />
+              </UBadge>
+              <UButton
+                color="neutral"
+                variant="link"
+                size="xs"
+                label="Limpiar todo"
+                icon="i-lucide-circle-x"
+                @click="limpiarFiltros"
+              />
             </div>
           </div>
         </template>
