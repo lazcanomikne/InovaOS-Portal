@@ -54,7 +54,8 @@ const COLS = {
     { key: 'Vendedor', label: 'Vendedor' },
     { key: 'Fecha', label: 'Fecha', date: true },
     { key: 'Monto', label: 'Venta neta', money: true, total: true },
-    { key: 'Utilidad', label: 'Utilidad', money: true, total: true }
+    { key: 'Utilidad', label: 'Utilidad', money: true, total: true },
+    { key: 'Margen', label: '% Margen', pct: true }
   ],
   hitrate: [
     { key: 'Empresa', label: 'Empresa', empresa: true },
@@ -105,9 +106,17 @@ const fecha = (v) => {
   if (!a) return '—'
   return new Date(a, m - 1, d).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '')
 }
+// Margen por línea = Utilidad / Venta neta (con las columnas que ya trae la fila).
+const margenNum = (row) => {
+  const v = Number(row.Monto)
+  return v ? (Number(row.Utilidad) / v) * 100 : 0
+}
+const pct = (n) => `${(Number(n) || 0).toFixed(1)}%`
+
 const cell = (row, col) => {
   const v = row[col.key]
   if (col.empresa) return empresaLabel(v)
+  if (col.pct) return pct(margenNum(row))
   if (col.money) return money(v)
   if (col.date) return fecha(v)
   return v ?? '—'
@@ -122,6 +131,9 @@ const totales = computed(() => {
   return t
 })
 
+// Margen global del desglose (para el pie del % Margen).
+const margenTotal = computed(() => totales.value.Monto ? (totales.value.Utilidad / totales.value.Monto) * 100 : 0)
+
 const close = () => { internalModel.value = false }
 
 const exportarExcel = () => {
@@ -129,9 +141,10 @@ const exportarExcel = () => {
     const o = {}
     for (const col of columns.value) {
       o[col.label] = col.empresa ? empresaLabel(r[col.key])
-        : col.date ? fecha(r[col.key])
-          : col.money ? Number(r[col.key]) || 0
-            : (r[col.key] ?? '')
+        : col.pct ? +margenNum(r).toFixed(1)
+          : col.date ? fecha(r[col.key])
+            : col.money ? Number(r[col.key]) || 0
+              : (r[col.key] ?? '')
     }
     return o
   })
@@ -186,7 +199,7 @@ const exportarExcel = () => {
                   v-for="col in columns"
                   :key="col.key"
                   class="px-3 py-2 text-left text-xs uppercase tracking-wide font-bold text-muted border-b border-default whitespace-nowrap"
-                  :class="col.money ? 'text-right' : ''"
+                  :class="(col.money || col.pct) ? 'text-right' : ''"
                 >
                   {{ col.label }}
                 </th>
@@ -204,6 +217,7 @@ const exportarExcel = () => {
                   class="px-3 py-2 whitespace-nowrap"
                   :class="[
                     col.money ? 'text-right font-semibold tabular-nums' : '',
+                    col.pct ? 'text-right tabular-nums text-muted' : '',
                     col.money && Number(row[col.key]) < 0 ? 'text-error' : '',
                     col.key === 'Convertida' ? (row.Convertida === 'Sí' ? 'text-success font-bold' : 'text-muted') : ''
                   ]"
@@ -223,9 +237,10 @@ const exportarExcel = () => {
                   v-for="(col, idx) in columns"
                   :key="col.key"
                   class="px-3 py-2 whitespace-nowrap"
-                  :class="col.money ? 'text-right tabular-nums' : ''"
+                  :class="(col.money || col.pct) ? 'text-right tabular-nums' : ''"
                 >
                   <template v-if="idx === 0">Total ({{ rows.length }})</template>
+                  <template v-else-if="col.pct">{{ pct(margenTotal) }}</template>
                   <template v-else-if="col.total">{{ money(totales[col.key]) }}</template>
                 </td>
               </tr>
