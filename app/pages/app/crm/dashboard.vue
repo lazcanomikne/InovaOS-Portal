@@ -1,5 +1,6 @@
 <script setup>
 import axios from '~/utils/axios'
+import KpiDetailDialog from '~/components/crm/KpiDetailDialog.vue'
 
 // Chart.js Imports
 import {
@@ -27,6 +28,13 @@ ChartJS.register(
 const toast = useToast()
 const loading = ref(false)
 const errorCarga = ref('')
+
+// Modal de desglose de un KPI (documentos que lo componen + export a Excel).
+const detalle = ref({ open: false, kpi: '', title: '' })
+const abrirDetalle = (kpi) => {
+  if (!kpi.key) return
+  detalle.value = { open: true, kpi: kpi.key, title: kpi.title }
+}
 
 const filters = ref({
   year: new Date().getFullYear().toString(),
@@ -61,6 +69,7 @@ const monthOptions = [
 const kpis = ref([
   {
     title: 'Pipeline',
+    key: 'pipeline',
     value: '$0',
     secondary: '',
     subtitle: 'Oportunidades activas (no cerradas)',
@@ -70,6 +79,7 @@ const kpis = ref([
   },
   {
     title: 'Backlog',
+    key: 'backlog',
     value: '$0',
     secondary: '',
     subtitle: 'Órdenes colocadas por facturar',
@@ -79,6 +89,7 @@ const kpis = ref([
   },
   {
     title: 'Revenue',
+    key: 'revenue',
     value: '$0',
     secondary: '',
     subtitle: 'Venta real facturada (sin IVA, neta de NC)',
@@ -88,6 +99,7 @@ const kpis = ref([
   },
   {
     title: 'Utilidad',
+    key: 'utilidad',
     value: '$0',
     secondary: '0%',
     subtitle: 'Margen sobre venta real',
@@ -97,6 +109,7 @@ const kpis = ref([
   },
   {
     title: 'Hit Rate',
+    key: 'hitrate',
     value: '0%',
     secondary: '',
     subtitle: 'Convertido a OV / total cotizado del periodo',
@@ -394,8 +407,9 @@ onMounted(async () => {
         <UCard
           v-for="(kpi, index) in kpis"
           :key="index"
-          class="border-t-[3px] h-full"
+          class="border-t-[3px] h-full cursor-pointer transition-transform hover:-translate-y-0.5 hover:ring-1 hover:ring-primary/30"
           :class="kpi.borde"
+          @click="abrirDetalle(kpi)"
         >
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs uppercase tracking-wide font-bold text-muted">{{ kpi.title }}</span>
@@ -415,8 +429,11 @@ onMounted(async () => {
           >
             {{ kpi.secondary }}
           </div>
-          <div class="mt-1 text-xs text-muted">
+          <div class="mt-1 text-xs text-muted flex items-center gap-1">
             {{ kpi.subtitle }}
+          </div>
+          <div class="mt-2 text-[0.7rem] text-primary font-semibold flex items-center gap-1">
+            <UIcon name="i-mdi-table-eye" class="size-3.5" /> Ver desglose
           </div>
         </UCard>
       </div>
@@ -449,6 +466,14 @@ onMounted(async () => {
           </template>
         </ClientOnly>
       </UCard>
+
+      <!-- Modal de desglose del KPI seleccionado -->
+      <KpiDetailDialog
+        v-model="detalle.open"
+        :kpi="detalle.kpi"
+        :title="detalle.title"
+        :filters="filters"
+      />
     </template>
   </UDashboardPanel>
 </template>
