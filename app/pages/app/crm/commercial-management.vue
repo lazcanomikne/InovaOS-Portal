@@ -15,7 +15,7 @@ const filters = ref({
   month: (new Date().getMonth() + 1).toString() // Mes actual
 })
 
-const yearOptions = ['2023', '2024', '2025', '2026']
+const yearOptions = ['Todos', '2023', '2024', '2025', '2026']
 const monthOptions = [
   { text: 'Enero', value: '1' },
   { text: 'Febrero', value: '2' },
@@ -351,6 +351,7 @@ onMounted(() => {
             <UFormField label="Mes">
               <USelect
                 v-model="filters.month"
+                  :disabled="filters.year === 'Todos'"
                 :items="monthOptions"
                 label-key="text"
                 value-key="value"

@@ -13,7 +13,7 @@ const filters = ref({
   stockStatus: null
 })
 
-const yearOptions = ['2023', '2024', '2025', '2026']
+const yearOptions = ['Todos', '2023', '2024', '2025', '2026']
 const monthOptions = [
   { text: 'Enero', value: '1' }, { text: 'Febrero', value: '2' }, { text: 'Marzo', value: '3' },
   { text: 'Abril', value: '4' }, { text: 'Mayo', value: '5' }, { text: 'Junio', value: '6' },
@@ -307,6 +307,7 @@ onMounted(fetchBacklog)
               <UFormField label="Mes" class="col-span-6 sm:col-span-4 md:col-span-2">
                 <USelect
                   v-model="filters.month"
+                  :disabled="filters.year === 'Todos'"
                   :items="monthOptions"
                   label-key="text"
                   value-key="value"
