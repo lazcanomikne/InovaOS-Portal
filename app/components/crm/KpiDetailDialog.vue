@@ -71,6 +71,15 @@ const COLS = {
 
 const columns = computed(() => COLS[props.kpi] || COLS.revenue)
 
+// Orden y filtros por columna (a nivel tabla).
+const sort = ref({ key: null, dir: 1 }) // dir: 1 asc, -1 desc
+const colFilters = ref({})
+const ordenarPor = (col) => {
+  sort.value = sort.value.key === col.key
+    ? { key: col.key, dir: -sort.value.dir }
+    : { key: col.key, dir: 1 }
+}
+
 watch(() => props.modelValue, (v) => {
   internalModel.value = v
   if (v && props.kpi) cargar()
@@ -80,6 +89,8 @@ watch(internalModel, (v) => emit('update:modelValue', v))
 const cargar = async () => {
   loading.value = true
   rows.value = []
+  sort.value = { key: null, dir: 1 }
+  colFilters.value = {}
   try {
     const r = await axios.get('/crm/dashboard/kpi-detail', {
       params: {
@@ -122,11 +133,48 @@ const cell = (row, col) => {
   return v ?? '—'
 }
 
-// Totales por columna marcada como `total`.
+// Valor comparable para ordenar; texto para filtrar (incluye lo mostrado y el
+// valor crudo, para que filtren tanto por "$50,000" como por "50000").
+const valorOrden = (row, col) => {
+  if (col.pct) return margenNum(row)
+  if (col.money) return Number(row[col.key]) || 0
+  if (col.empresa) return empresaLabel(row[col.key])
+  if (col.date) return String(row[col.key] || '').slice(0, 10)
+  return String(row[col.key] ?? '')
+}
+const textoBusqueda = (row, col) => {
+  const raw = col.pct ? margenNum(row).toFixed(1) : row[col.key]
+  return `${cell(row, col)} ${raw ?? ''}`.toLowerCase()
+}
+
+const filasFiltradas = computed(() => {
+  const activos = Object.entries(colFilters.value).filter(([, v]) => String(v || '').trim())
+  if (!activos.length) return rows.value
+  return rows.value.filter(row => activos.every(([k, v]) => {
+    const col = columns.value.find(c => c.key === k)
+    return col ? textoBusqueda(row, col).includes(String(v).toLowerCase().trim()) : true
+  }))
+})
+
+const filasVista = computed(() => {
+  const arr = [...filasFiltradas.value]
+  const s = sort.value
+  if (!s.key) return arr
+  const col = columns.value.find(c => c.key === s.key)
+  if (!col) return arr
+  const numerica = col.money || col.pct
+  arr.sort((a, b) => {
+    const va = valorOrden(a, col), vb = valorOrden(b, col)
+    return (numerica ? (va - vb) : String(va).localeCompare(String(vb), 'es')) * s.dir
+  })
+  return arr
+})
+
+// Totales sobre lo FILTRADO (para que el pie refleje lo que se ve).
 const totales = computed(() => {
   const t = {}
   for (const col of columns.value) {
-    if (col.total) t[col.key] = rows.value.reduce((a, r) => a + (Number(r[col.key]) || 0), 0)
+    if (col.total) t[col.key] = filasFiltradas.value.reduce((a, r) => a + (Number(r[col.key]) || 0), 0)
   }
   return t
 })
@@ -137,7 +185,7 @@ const margenTotal = computed(() => totales.value.Monto ? (totales.value.Utilidad
 const close = () => { internalModel.value = false }
 
 const exportarExcel = () => {
-  const data = rows.value.map(r => {
+  const data = filasVista.value.map(r => {
     const o = {}
     for (const col of columns.value) {
       o[col.label] = col.empresa ? empresaLabel(r[col.key])
@@ -163,7 +211,7 @@ const exportarExcel = () => {
       <div class="flex items-center gap-2 w-full">
         <UButton icon="i-mdi-close" color="neutral" variant="ghost" @click="close" />
         <span class="font-semibold text-highlighted">Desglose · {{ title }}</span>
-        <UBadge color="primary" variant="subtle">{{ rows.length }} operaciones</UBadge>
+        <UBadge color="primary" variant="subtle">{{ filasFiltradas.length }} operaciones</UBadge>
         <div class="flex-1" />
         <UButton
           color="success"
@@ -194,20 +242,44 @@ const exportarExcel = () => {
         <div v-else class="border border-default rounded-lg overflow-auto" style="max-height: calc(100vh - 220px);">
           <table class="w-full text-sm">
             <thead class="sticky top-0 bg-elevated z-10">
+              <!-- Encabezados: clic para ordenar -->
               <tr>
                 <th
                   v-for="col in columns"
                   :key="col.key"
-                  class="px-3 py-2 text-left text-xs uppercase tracking-wide font-bold text-muted border-b border-default whitespace-nowrap"
-                  :class="(col.money || col.pct) ? 'text-right' : ''"
+                  class="px-3 pt-2 pb-1 text-xs uppercase tracking-wide font-bold text-muted whitespace-nowrap cursor-pointer select-none hover:text-highlighted"
+                  @click="ordenarPor(col)"
                 >
-                  {{ col.label }}
+                  <span class="inline-flex items-center gap-1" :class="(col.money || col.pct) ? 'w-full justify-end' : ''">
+                    {{ col.label }}
+                    <UIcon
+                      :name="sort.key === col.key ? (sort.dir === 1 ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down') : 'i-lucide-chevrons-up-down'"
+                      class="size-3"
+                      :class="sort.key === col.key ? 'text-primary' : 'opacity-40'"
+                    />
+                  </span>
+                </th>
+              </tr>
+              <!-- Filtro por columna -->
+              <tr>
+                <th
+                  v-for="col in columns"
+                  :key="`f-${col.key}`"
+                  class="px-2 pb-2 border-b border-default"
+                >
+                  <input
+                    v-model="colFilters[col.key]"
+                    type="text"
+                    placeholder="Filtrar…"
+                    class="w-full text-xs font-normal normal-case px-2 py-1 rounded-md border border-default bg-default text-highlighted outline-none focus:border-primary"
+                    @click.stop
+                  >
                 </th>
               </tr>
             </thead>
             <tbody>
               <tr
-                v-for="(row, i) in rows"
+                v-for="(row, i) in filasVista"
                 :key="i"
                 class="border-b border-default/60 hover:bg-elevated/40"
               >
@@ -230,6 +302,11 @@ const exportarExcel = () => {
                   </template>
                 </td>
               </tr>
+              <tr v-if="!filasVista.length">
+                <td :colspan="columns.length" class="text-center py-8 text-dimmed">
+                  Ningún resultado con los filtros aplicados.
+                </td>
+              </tr>
             </tbody>
             <tfoot class="sticky bottom-0 bg-elevated">
               <tr class="border-t-2 border-default font-bold">
@@ -239,7 +316,7 @@ const exportarExcel = () => {
                   class="px-3 py-2 whitespace-nowrap"
                   :class="(col.money || col.pct) ? 'text-right tabular-nums' : ''"
                 >
-                  <template v-if="idx === 0">Total ({{ rows.length }})</template>
+                  <template v-if="idx === 0">Total ({{ filasFiltradas.length }})</template>
                   <template v-else-if="col.pct">{{ pct(margenTotal) }}</template>
                   <template v-else-if="col.total">{{ money(totales[col.key]) }}</template>
                 </td>
