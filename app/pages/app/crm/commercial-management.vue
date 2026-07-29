@@ -318,7 +318,7 @@ onMounted(() => {
               {{ formatCurrency(totalPendiente) }}
             </div>
             <div class="text-[0.65rem] text-dimmed">
-              Por cobrar (con IVA)
+              Por cobrar (neto)
             </div>
           </UCard>
 
