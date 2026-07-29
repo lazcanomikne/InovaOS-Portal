@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import axios from '~/utils/axios'
+import { useCompanyStore } from '~/stores/company'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -9,6 +10,21 @@ const props = defineProps({
   header: Object // pre-cargado desde el listado (SourceCompany, margen, utilidad…)
 })
 const emit = defineEmits(['update:modelValue'])
+
+// Logo de la EMPRESA de la factura (su SourceCompany), no uno fijo. El papel
+// (color surface) cambia con el modo: oscuro usa el logo claro; claro usa el
+// printLogo (visible sobre blanco).
+const colorMode = useColorMode()
+const companyStore = useCompanyStore()
+const isDark = computed(() => colorMode.value === 'dark')
+const empresaFactura = computed(() =>
+  companyStore.companies.find(c => c.id === props.header?.SourceCompany) || companyStore.company
+)
+const activeLogo = computed(() => {
+  const c = empresaFactura.value
+  if (!c) return null
+  return isDark.value ? (c.logoDark || c.logo) : (c.printLogo || c.logo)
+})
 
 const internalModel = ref(props.modelValue)
 const loading = ref(false)
@@ -161,8 +177,16 @@ const getPaymentStatusColor = (status) => ({ Pagada: 'success', Parcial: 'warnin
           <div class="col-span-12 lg:col-span-7">
             <UCard class="invoice-paper mx-auto" :ui="{ body: 'p-6 sm:p-8' }">
               <div class="flex justify-between items-start mb-6">
-                <div class="text-3xl font-bold text-primary">
-                  INOVATECH
+                <div>
+                  <img
+                    v-if="activeLogo"
+                    :src="activeLogo"
+                    :alt="empresaFactura?.label || 'Empresa'"
+                    style="height: 64px; max-width: 220px; object-fit: contain;"
+                  >
+                  <div v-else class="text-2xl font-bold text-primary">
+                    {{ empresaFactura?.label || 'Empresa' }}
+                  </div>
                 </div>
                 <div class="text-right">
                   <div class="text-xl font-bold">
