@@ -141,6 +141,9 @@ const limpiarFiltros = () => {
   search.value = ''
   filters.value.vendedor = []
   filters.value.stockStatus = null
+  // El Mes vuelve al actual (reset del periodo); el Año se conserva.
+  filters.value.month = (new Date().getMonth() + 1).toString()
+  fetchBacklog()
 }
 
 // Chips de filtros activos (misma lógica que el Pipeline): un chip por valor,
@@ -365,7 +368,6 @@ onMounted(fetchBacklog)
                 size="xs"
                 label="Limpiar filtros"
                 icon="i-lucide-filter-x"
-                :disabled="!hayFiltros"
                 @click="limpiarFiltros"
               />
             </div>

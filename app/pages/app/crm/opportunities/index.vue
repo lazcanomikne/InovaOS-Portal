@@ -181,7 +181,6 @@ onMounted(fetchOpportunities)
               size="sm"
               label="Limpiar filtros"
               icon="i-lucide-filter-x"
-              :disabled="!hayFiltros"
               @click="limpiarFiltros"
             />
           </div>
