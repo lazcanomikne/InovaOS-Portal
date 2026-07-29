@@ -93,9 +93,11 @@ const filteredInvoices = computed(() => {
 })
 
 // KPIs
-const totalNetSales = computed(() => filteredInvoices.value.reduce((acc, item) => acc + item.VentaNetaMXN, 0))
-// Pendiente de pago: suma del saldo por cobrar (con IVA) de las facturas.
-const totalPendiente = computed(() => filteredInvoices.value.reduce((acc, item) => acc + (Number(item.SaldoPendiente) || 0), 0))
+// Toggle Sin IVA / Con IVA para los montos de venta y de pendiente de pago.
+const conIVA = ref(false)
+const totalVenta = computed(() => filteredInvoices.value.reduce((acc, item) => acc + (Number(conIVA.value ? item.VentaConIVA : item.VentaNetaMXN) || 0), 0))
+// Pendiente de pago: saldo por cobrar (neto o con IVA según el toggle).
+const totalPendiente = computed(() => filteredInvoices.value.reduce((acc, item) => acc + (Number(conIVA.value ? item.PendienteConIVA : item.SaldoPendiente) || 0), 0))
 const totalProfit = computed(() => filteredInvoices.value.reduce((acc, item) => acc + item.UtilidadMXN, 0))
 const appliedProfit = computed(() => {
   return filteredInvoices.value
@@ -152,6 +154,8 @@ const sorting = ref([])
 
 const columns = computed(() => headers.map((hdr) => {
   const align = hdr.align === 'end' ? 'text-right' : hdr.align === 'center' ? 'text-center' : ''
+  // La columna de Venta refleja el toggle Sin/Con IVA.
+  const tituloCol = hdr.key === 'VentaNetaMXN' ? (conIVA.value ? 'Venta c/IVA' : 'Venta Neta') : hdr.title
   return {
     id: hdr.key,
     accessorKey: hdr.key,
@@ -168,8 +172,8 @@ const columns = computed(() => headers.map((hdr) => {
       color: 'neutral',
       variant: 'ghost',
       size: 'xs',
-      label: hdr.title,
-      title: hdr.title,
+      label: tituloCol,
+      title: tituloCol,
       class: '-mx-1.5 max-w-full min-w-0',
       ui: { label: 'truncate' },
       trailingIcon: column.getIsSorted() === 'asc'
@@ -234,6 +238,15 @@ onMounted(() => {
         </template>
 
         <template #right>
+          <UTooltip :text="conIVA ? 'Mostrando montos CON IVA. Clic para verlos sin IVA.' : 'Mostrando montos SIN IVA. Clic para verlos con IVA.'">
+            <UButton
+              :color="conIVA ? 'primary' : 'neutral'"
+              :variant="conIVA ? 'solid' : 'soft'"
+              icon="i-mdi-cash-multiple"
+              :label="conIVA ? 'Con IVA' : 'Sin IVA'"
+              @click="conIVA = !conIVA"
+            />
+          </UTooltip>
           <UButton
             color="primary"
             icon="i-mdi-refresh"
@@ -282,10 +295,10 @@ onMounted(() => {
 
           <UCard :ui="{ body: 'text-center' }" class="border-t-4 border-t-primary">
             <div class="text-xs uppercase tracking-wide text-muted mb-1">
-              Venta Neta
+              {{ conIVA ? 'Venta con IVA' : 'Venta Neta' }}
             </div>
             <div class="text-2xl font-bold text-primary">
-              {{ formatCurrency(totalNetSales) }}
+              {{ formatCurrency(totalVenta) }}
             </div>
           </UCard>
 
@@ -318,7 +331,7 @@ onMounted(() => {
               {{ formatCurrency(totalPendiente) }}
             </div>
             <div class="text-[0.65rem] text-dimmed">
-              Por cobrar (neto)
+              Por cobrar ({{ conIVA ? 'con IVA' : 'neto' }})
             </div>
           </UCard>
 
@@ -549,8 +562,8 @@ onMounted(() => {
 
           <template #VentaNetaMXN-cell="{ row }">
             <div class="flex flex-col items-end">
-              <span class="font-bold">{{ formatCurrency(row.original.VentaNetaMXN) }}</span>
-              <span class="text-xs text-dimmed">USD: {{ formatCurrency(row.original.VentaNetaUSD, 'USD') }}</span>
+              <span class="font-bold">{{ formatCurrency(conIVA ? row.original.VentaConIVA : row.original.VentaNetaMXN) }}</span>
+              <span class="text-xs text-dimmed">USD: {{ formatCurrency(conIVA ? row.original.VentaConIVAUSD : row.original.VentaNetaUSD, 'USD') }}</span>
             </div>
           </template>
 
