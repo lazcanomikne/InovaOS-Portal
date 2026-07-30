@@ -98,17 +98,12 @@ const conIVA = ref(false)
 const totalVenta = computed(() => filteredInvoices.value.reduce((acc, item) => acc + (Number(conIVA.value ? item.VentaConIVA : item.VentaNetaMXN) || 0), 0))
 // Pendiente de pago: saldo por cobrar (neto o con IVA según el toggle).
 const totalPendiente = computed(() => filteredInvoices.value.reduce((acc, item) => acc + (Number(conIVA.value ? item.PendienteConIVA : item.SaldoPendiente) || 0), 0))
-const totalProfit = computed(() => filteredInvoices.value.reduce((acc, item) => acc + item.UtilidadMXN, 0))
-const appliedProfit = computed(() => {
-  return filteredInvoices.value
-    .filter(item => item.EstatusPago === 'Pagada')
-    .reduce((acc, item) => acc + item.UtilidadMXN, 0)
-})
-const averageMargin = computed(() => {
-  if (filteredInvoices.value.length === 0) return 0
-  const totalMargin = filteredInvoices.value.reduce((acc, item) => acc + item.PorcentajeMargen, 0)
-  return totalMargin / filteredInvoices.value.length
-})
+
+// Cobranza (siempre con IVA, que es el dinero real): Pagado, total facturado y
+// el avance de cobranza (pagado / total facturado).
+const totalPagado = computed(() => filteredInvoices.value.reduce((acc, item) => acc + (Number(item.MontoPagado) || 0), 0))
+const totalFacturadoConIVA = computed(() => filteredInvoices.value.reduce((acc, item) => acc + (Number(item.VentaConIVA) || 0), 0))
+const avanceCobranza = computed(() => totalFacturadoConIVA.value ? (totalPagado.value / totalFacturadoConIVA.value) * 100 : 0)
 
 // Formatters
 const formatCurrency = (value, currency) => {
@@ -265,15 +260,12 @@ onMounted(() => {
         </p>
       </div>
 
-      <!-- KPIs. Son cinco medidas distintas, no estados: usan la paleta de marca
-           (azul que se intensifica, gris para lo derivado). Los semánticos
-           success/warning/error quedan para el estatus de cobranza y el margen,
-           donde sí expresan un juicio sobre el dato. -->
-      <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+      <!-- KPIs: conteo, venta, y la cobranza (Pagado, Pendiente, Avance). -->
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <!-- Esqueletos: sólo en la primera carga, para que no parpadeen al filtrar -->
         <template v-if="cargaInicial">
           <UCard
-            v-for="i in 6"
+            v-for="i in 5"
             :key="`kpi-skel-${i}`"
             :ui="{ body: 'text-center' }"
             class="border-t-4 border-t-default"
@@ -302,24 +294,15 @@ onMounted(() => {
             </div>
           </UCard>
 
-          <UCard :ui="{ body: 'text-center' }" class="border-t-4 border-t-primary-400">
+          <UCard :ui="{ body: 'text-center' }" class="border-t-4 border-t-success">
             <div class="text-xs uppercase tracking-wide text-muted mb-1">
-              Utilidad Total
+              Pagado
             </div>
-            <div class="text-xl font-bold text-primary-500 dark:text-primary-400">
-              {{ formatCurrency(totalProfit) }}
-            </div>
-          </UCard>
-
-          <UCard :ui="{ body: 'text-center' }" class="border-t-4 border-t-ink-800 dark:border-t-ink-300">
-            <div class="text-xs uppercase tracking-wide text-muted mb-1">
-              Utilidad Aplicada
-            </div>
-            <div class="text-xl font-bold text-ink-800 dark:text-ink-200">
-              {{ formatCurrency(appliedProfit) }}
+            <div class="text-xl font-bold text-success">
+              {{ formatCurrency(totalPagado) }}
             </div>
             <div class="text-[0.65rem] text-dimmed">
-              Pagadas
+              Cobrado (con IVA)
             </div>
           </UCard>
 
@@ -335,12 +318,21 @@ onMounted(() => {
             </div>
           </UCard>
 
-          <UCard :ui="{ body: 'text-center' }" class="border-t-4 border-t-ink-600 dark:border-t-ink-400">
+          <UCard :ui="{ body: 'text-center' }" class="border-t-4 border-t-ink-700 dark:border-t-ink-300">
             <div class="text-xs uppercase tracking-wide text-muted mb-1">
-              Margen Promedio
+              Avance de cobranza
             </div>
-            <div class="text-2xl font-bold text-ink-700 dark:text-ink-300">
-              {{ formatPercent(averageMargin) }}
+            <div class="text-2xl font-bold text-ink-700 dark:text-ink-200">
+              {{ formatPercent(avanceCobranza) }}
+            </div>
+            <UProgress
+              :model-value="Math.max(0, Math.min(100, avanceCobranza))"
+              color="success"
+              size="sm"
+              class="mt-2"
+            />
+            <div class="text-[0.65rem] text-dimmed mt-1">
+              Pagado vs. total facturado
             </div>
           </UCard>
         </template>
