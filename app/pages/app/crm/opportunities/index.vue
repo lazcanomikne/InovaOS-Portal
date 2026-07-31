@@ -9,6 +9,9 @@ const loading = ref(false)
 const opportunities = ref([])
 const search = ref('')
 
+// Barra de KPIs que se compacta al hacer scroll (efecto de Caja Chica).
+const { compacto, barraRef, centinelaRef } = useBarraCompacta()
+
 // `w` es el peso de la columna en porcentaje. La tabla usa `table-fixed`, así
 // que estos anchos mandan y el texto largo se recorta con elipsis en lugar de
 // ensanchar la tabla. Mismo criterio que el pipeline.
@@ -86,7 +89,7 @@ onMounted(fetchOpportunities)
 
 <template>
   <!-- `overflow-hidden` en el body: la página no scrollea, sólo la tabla. -->
-  <UDashboardPanel id="crm-opportunities" :ui="{ body: 'overflow-hidden' }">
+  <UDashboardPanel id="crm-opportunities">
     <template #header>
       <UDashboardNavbar title="Oportunidades" :ui="{ right: 'gap-3' }">
         <template #leading>
@@ -107,11 +110,18 @@ onMounted(fetchOpportunities)
     </template>
 
     <template #body>
-      <p class="text-muted mb-4">
+      <div ref="centinelaRef" class="h-px w-full" aria-hidden="true" />
+      <p class="text-muted mb-2">
         Cotizaciones consolidadas por cliente
       </p>
 
-      <div class="grid grid-cols-12 gap-4 mb-4">
+      <!-- KPIs: barra pegada que se compacta al hacer scroll. -->
+      <div
+        ref="barraRef"
+        class="kpi-barra sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-1 pb-3 mb-4 bg-default transition-shadow"
+        :class="compacto ? 'compacta shadow-md border-b border-default' : ''"
+      >
+        <div class="grid grid-cols-12 gap-4">
         <!-- Esqueletos: sólo en la primera carga, para que no parpadeen al filtrar -->
         <template v-if="cargaInicial">
           <UCard
@@ -148,14 +158,12 @@ onMounted(fetchOpportunities)
             </div>
           </UCard>
         </template>
+        </div>
       </div>
 
-      <!-- La tarjeta ocupa el espacio restante y es la única que scrollea por
-           dentro: los indicadores y el buscador quedan siempre a la vista. -->
-      <UCard
-        class="flex-1 min-h-0 flex flex-col"
-        :ui="{ body: 'p-0 sm:p-0 flex-1 min-h-0 flex flex-col', header: 'shrink-0' }"
-      >
+      <!-- La tabla crece con su contenido; el scroll es el de la página, con el
+           encabezado anclado bajo la barra de KPIs (var(--barra-h)). -->
+      <UCard :ui="{ root: 'overflow-visible', body: 'p-0 sm:p-0' }">
         <template #header>
           <div class="flex items-center gap-2">
             <UInput
@@ -191,11 +199,13 @@ onMounted(fetchOpportunities)
           :columns="columns"
           :loading="loading"
           sticky="header"
-          class="cursor-pointer flex-1 min-h-0 overflow-y-auto"
+          class="cursor-pointer tabla-crm"
           :ui="{
-            base: 'table-fixed w-full',
+            root: 'overflow-visible',
+            base: 'table-fixed w-full overflow-visible',
+            thead: 'bg-default backdrop-blur-none shadow-sm',
             td: 'text-sm py-2',
-            th: 'text-xs py-2'
+            th: 'text-xs py-2 bg-default'
           }"
           @select="(_e, row) => openDetail(row.original)"
         >

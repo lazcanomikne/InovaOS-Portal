@@ -36,6 +36,9 @@ const creatorOptions = ref([{ name: 'Todos los creadores', id: null }])
 
 // Data
 const prospects = ref([])
+
+// Barra de KPIs que se compacta al hacer scroll (efecto de Caja Chica).
+const { compacto, barraRef, centinelaRef } = useBarraCompacta()
 const kpisData = ref({
   totalProspects: 0,
   newThisMonth: 0,
@@ -233,7 +236,7 @@ onMounted(() => {
 
 <template>
   <!-- `overflow-hidden` en el body: la página no scrollea, sólo la tabla. -->
-  <UDashboardPanel id="crm-prospects" :ui="{ body: 'overflow-hidden' }">
+  <UDashboardPanel id="crm-prospects">
     <template #header>
       <UDashboardNavbar title="Nuevos Logos">
         <template #leading>
@@ -253,14 +256,20 @@ onMounted(() => {
     </template>
 
     <template #body>
-      <div class="mb-4">
+      <div ref="centinelaRef" class="h-px w-full" aria-hidden="true" />
+      <div class="mb-2">
         <p class="text-muted">
           Seguimiento y Registro de Nuevos Clientes (SAP)
         </p>
       </div>
 
-      <!-- KPIs -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <!-- KPIs: barra pegada que se compacta al hacer scroll. -->
+      <div
+        ref="barraRef"
+        class="kpi-barra sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-1 pb-3 mb-4 bg-default transition-shadow"
+        :class="compacto ? 'compacta shadow-md border-b border-default' : ''"
+      >
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Esqueletos: sólo en la primera carga, para que no parpadeen al filtrar -->
         <UCard
           v-for="i in (cargaInicial ? 4 : 0)"
@@ -291,10 +300,11 @@ onMounted(() => {
             {{ kpi.subtitle }}
           </div>
         </UCard>
+        </div>
       </div>
 
-      <!-- Barra de filtros: siempre visible, no se comprime -->
-      <UCard class="mb-6 shrink-0">
+      <!-- Barra de filtros -->
+      <UCard class="mb-6">
         <div class="flex flex-wrap items-end gap-3">
           <UFormField label="Año" class="w-32">
             <USelect
@@ -352,10 +362,7 @@ onMounted(() => {
       </UCard>
 
       <!-- Tabla principal: ocupa el espacio restante y scrollea por dentro -->
-      <UCard
-        class="flex-1 min-h-0 flex flex-col"
-        :ui="{ body: 'p-0 sm:p-0 flex-1 min-h-0 flex flex-col' }"
-      >
+      <UCard :ui="{ root: 'overflow-visible', body: 'p-0 sm:p-0' }">
         <div class="flex items-center gap-4 p-4 border-b border-default shrink-0">
           <UInput
             v-model="search"
@@ -375,11 +382,13 @@ onMounted(() => {
           :columns="columns"
           :loading="loading"
           sticky="header"
-          class="flex-1 min-h-0 overflow-y-auto"
+          class="tabla-crm"
           :ui="{
-            base: 'table-fixed w-full',
+            root: 'overflow-visible',
+            base: 'table-fixed w-full overflow-visible',
+            thead: 'bg-default backdrop-blur-none shadow-sm',
             td: 'text-sm py-2',
-            th: 'text-xs py-2'
+            th: 'text-xs py-2 bg-default'
           }"
         >
           <!-- Carga: filas fantasma en vez de un spinner suelto. Da sensación

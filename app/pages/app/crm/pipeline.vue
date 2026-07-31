@@ -28,6 +28,9 @@ const goToOpportunity = id => router.push(`/app/crm/opportunities/${id}`)
 const badgeColor = c => ({ orange: 'warning', grey: 'neutral', teal: 'info', purple: 'primary' })[c] || c
 
 const pipeline = ref([])
+
+// Barra de KPIs que se compacta al hacer scroll (efecto de Caja Chica).
+const { compacto, barraRef, centinelaRef } = useBarraCompacta()
 // Todos los filtros de catálogo son multi-selección. Un arreglo vacío significa
 // "sin filtro" (equivale a Todos), así que siempre existe la opción de no
 // seleccionar nada. `month` vacío = el año completo.
@@ -430,7 +433,7 @@ onMounted(async () => {
 
 <template>
   <!-- `overflow-hidden` en el body: la página no scrollea, sólo la tabla. -->
-  <UDashboardPanel id="crm-pipeline" :ui="{ body: 'overflow-hidden' }">
+  <UDashboardPanel id="crm-pipeline">
     <template #header>
       <UDashboardNavbar title="Mi Pipeline" :ui="{ right: 'gap-2' }">
         <template #leading>
@@ -500,16 +503,20 @@ onMounted(async () => {
     </template>
 
     <template #body>
-      <div class="mb-4">
+      <div ref="centinelaRef" class="h-px w-full" aria-hidden="true" />
+      <div class="mb-2">
         <p class="text-muted">
           Gestión de Oportunidades (SAP B1 OQUT)
         </p>
       </div>
 
-      <!-- KPIs. Paleta de marca: azul #0096D5 para lo principal y gris #2C3038
-           para lo estructural. Los colores semánticos (success/warning/error)
-           quedan reservados para estados, no para categorías. -->
-      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <!-- KPIs: barra pegada que se compacta al hacer scroll. -->
+      <div
+        ref="barraRef"
+        class="kpi-barra sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-1 pb-3 mb-4 bg-default transition-shadow"
+        :class="compacto ? 'compacta shadow-md border-b border-default' : ''"
+      >
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <!-- Esqueletos: sólo en la primera carga, para que no parpadeen al filtrar -->
         <template v-if="cargaInicial">
           <UCard
@@ -575,6 +582,7 @@ onMounted(async () => {
             </div>
           </UCard>
         </template>
+        </div>
       </div>
 
       <UAlert
@@ -589,11 +597,8 @@ onMounted(async () => {
 
       <!-- La tarjeta ocupa el espacio restante y es la única que scrollea por
            dentro: los indicadores y los filtros quedan siempre a la vista. -->
-      <UCard
-        class="flex-1 min-h-0 flex flex-col"
-        :ui="{ body: 'p-0 sm:p-0 flex-1 min-h-0 flex flex-col' }"
-      >
-        <div class="p-4 bg-elevated/30 border-b border-default shrink-0">
+      <UCard :ui="{ root: 'overflow-visible', body: 'p-0 sm:p-0' }">
+        <div class="p-4 bg-elevated/30 border-b border-default">
           <!-- Búsqueda global -->
           <UInput
             v-model="filters.cliente"
@@ -726,11 +731,13 @@ onMounted(async () => {
           :columns="columns"
           :loading="loading"
           sticky="header"
-          class="flex-1 min-h-0 overflow-y-auto"
+          class="tabla-crm"
           :ui="{
-            base: 'table-fixed w-full',
+            root: 'overflow-visible',
+            base: 'table-fixed w-full overflow-visible',
+            thead: 'bg-default backdrop-blur-none shadow-sm',
             td: 'text-sm py-2',
-            th: 'text-xs py-2'
+            th: 'text-xs py-2 bg-default'
           }"
           @select="(_e, row) => openQuoteDialog(row.original)"
         >

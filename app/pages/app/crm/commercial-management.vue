@@ -8,6 +8,9 @@ const UButton = resolveComponent('UButton')
 const loading = ref(false)
 const invoices = ref([])
 const search = ref('')
+
+// Barra de KPIs que se compacta al hacer scroll (efecto de Caja Chica).
+const { compacto, barraRef, centinelaRef } = useBarraCompacta()
 const filters = ref({
   vendedor: null,
   estatusPago: null,
@@ -225,7 +228,7 @@ onMounted(() => {
 
 <template>
   <!-- `overflow-hidden` en el body: la página no scrollea, sólo la tabla. -->
-  <UDashboardPanel id="crm-commercial-management" :ui="{ body: 'overflow-hidden' }">
+  <UDashboardPanel id="crm-commercial-management">
     <template #header>
       <UDashboardNavbar title="Gestión Comercial">
         <template #leading>
@@ -254,14 +257,16 @@ onMounted(() => {
     </template>
 
     <template #body>
-      <div class="mb-4">
-        <p class="text-muted">
-          Facturas de Clientes (SAP B1 OINV)
-        </p>
-      </div>
+      <!-- Centinela: al salir de la vista, la barra de KPIs se compacta. -->
+      <div ref="centinelaRef" class="h-px w-full" aria-hidden="true" />
 
-      <!-- KPIs: conteo, venta, y la cobranza (Pagado, Pendiente, Avance). -->
-      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <!-- KPIs: barra pegada arriba que se encoge al hacer scroll. -->
+      <div
+        ref="barraRef"
+        class="kpi-barra sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-1 pb-3 mb-4 bg-default transition-shadow"
+        :class="compacto ? 'compacta shadow-md border-b border-default' : ''"
+      >
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <!-- Esqueletos: sólo en la primera carga, para que no parpadeen al filtrar -->
         <template v-if="cargaInicial">
           <UCard
@@ -336,15 +341,13 @@ onMounted(() => {
             </div>
           </UCard>
         </template>
+        </div>
       </div>
 
-      <!-- La tarjeta ocupa el espacio restante y es la única que scrollea por
-           dentro: los indicadores y los filtros quedan siempre a la vista. -->
-      <UCard
-        class="flex-1 min-h-0 flex flex-col"
-        :ui="{ body: 'p-0 sm:p-0 flex-1 min-h-0 flex flex-col' }"
-      >
-        <div class="p-4 bg-elevated/30 border-b border-default shrink-0">
+      <!-- La tabla crece con su contenido; el scroll es el de la página. Su
+           encabezado se ancla bajo la barra de KPIs (var(--barra-h)). -->
+      <UCard :ui="{ root: 'overflow-visible', body: 'p-0 sm:p-0' }">
+        <div class="p-4 bg-elevated/30 border-b border-default">
           <!-- Búsqueda global -->
           <UInput
             v-model="search"
@@ -451,12 +454,14 @@ onMounted(() => {
           :columns="columns"
           :loading="loading"
           sticky="header"
-          class="flex-1 min-h-0 overflow-y-auto"
+          class="tabla-crm"
           :ui="{
-            base: 'table-fixed w-full',
+            root: 'overflow-visible',
+            base: 'table-fixed w-full overflow-visible',
+            thead: 'bg-default backdrop-blur-none shadow-sm',
             tr: 'cursor-pointer',
             td: 'text-sm py-2',
-            th: 'text-xs py-2'
+            th: 'text-xs py-2 bg-default'
           }"
           @select="(_e, row) => openDialog(row.original)"
         >

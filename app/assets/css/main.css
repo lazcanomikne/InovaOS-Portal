@@ -424,3 +424,23 @@
     display: none;
   }
 }
+
+/* ============ CRM: barra de KPIs pegada que se compacta al hacer scroll ======
+   La barra de KPIs (.kpi-barra) se queda arriba (sticky) y, al bajar, encoge las
+   tarjetas: menos padding y numeros mas pequenos. El encabezado de la tabla
+   (.tabla-crm) se ancla justo debajo (top: --barra-h, publicado por el
+   composable useBarraCompacta). */
+.kpi-barra [data-slot="body"] { transition: padding 0.2s ease; }
+.kpi-barra.compacta [data-slot="body"] {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+.kpi-barra.compacta :is(.text-2xl, .text-xl) {
+  font-size: 1.05rem !important;
+  line-height: 1.3 !important;
+}
+.tabla-crm :is(thead) {
+  position: sticky;
+  top: var(--barra-h, 0px);
+  z-index: 20;
+}
