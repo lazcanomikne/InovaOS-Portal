@@ -7,7 +7,7 @@
 // El acceso no se controla aquí sino desde los permisos del menú, así que
 // basta con quitar la entrada a un perfil para que deje de verla.
 import axios from '~/utils/axios'
-import { fechaCorta, aValorInput } from '~/utils/fechas'
+import { fechaCorta, aValorInput, diasHabiles } from '~/utils/fechas'
 
 const toast = useToast()
 
@@ -283,9 +283,8 @@ const descuentoPrevisto = computed(() => {
   if (f.RequestType in fijos) return fijos[f.RequestType]
   if (f.RequestType === 'CASH_OUT') return Number(f.DaysQuantity) || 0
   if (!f.StartDate) return 0
-  const a = new Date(f.StartDate)
-  const b = new Date(f.EndDate || f.StartDate)
-  return Math.round(Math.abs(b - a) / 86400000) + 1
+  // Vacaciones: sólo días hábiles (L-V). Sábado y domingo no descuentan.
+  return diasHabiles(f.StartDate, f.EndDate || f.StartDate)
 })
 
 const guardarMovimiento = async () => {

@@ -15,6 +15,24 @@
 //   DATETIME  un instante: creación de un registro, captura de una solicitud.
 //             Ahí la conversión a hora local sí es la correcta.
 
+/**
+ * Días HÁBILES (Lunes a Viernes) entre dos fechas, inclusive. La jornada es L-V,
+ * así que las vacaciones no cuentan sábados ni domingos: viernes a lunes = 2.
+ */
+export const diasHabiles = (ini, fin) => {
+  const a = aFechaLocal(ini)
+  const b = aFechaLocal(fin || ini)
+  if (!a || !b || b < a) return 0
+  let n = 0
+  const cur = new Date(a)
+  while (cur <= b) {
+    const dow = cur.getDay() // 0 dom, 6 sáb
+    if (dow !== 0 && dow !== 6) n++
+    cur.setDate(cur.getDate() + 1)
+  }
+  return n
+}
+
 /** Fecha de calendario (columna DATE) en hora local, sin corrimiento. */
 export const aFechaLocal = (valor) => {
   if (!valor) return null

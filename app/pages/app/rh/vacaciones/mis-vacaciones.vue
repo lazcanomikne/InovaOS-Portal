@@ -3,7 +3,7 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from '~/utils/axios'
 import { useAuthStore } from '~/stores/auth'
-import { aFechaLocal } from '~/utils/fechas'
+import { aFechaLocal, diasHabiles } from '~/utils/fechas'
 
 const toast = useToast()
 
@@ -29,15 +29,28 @@ const form = ref({
   startDate: null,
   endDate: null,
   reason: '',
-  subType: 'PERMIT_DAY'
+  subType: 'PERMIT_DAY',
+  qty: null // cantidad de días para canje
 })
 
-const errores = ref({ startDate: '', reason: '' })
+const errores = ref({ startDate: '', reason: '', qty: '' })
+
+// Días hábiles (L-V) que se descontarían en vacaciones, para mostrarlo antes.
+const diasHabilesPreview = computed(() =>
+  form.value.startDate ? diasHabiles(form.value.startDate, form.value.endDate || form.value.startDate) : 0)
 
 const validar = () => {
+  if (dialog.value.type === 'CASH_OUT') {
+    errores.value = {
+      startDate: '', qty: Number(form.value.qty) > 0 ? '' : 'Indica cuántos días',
+      reason: form.value.reason ? '' : 'Requerido'
+    }
+    return !errores.value.qty && !errores.value.reason
+  }
   errores.value = {
     startDate: form.value.startDate ? '' : 'Requerido',
-    reason: form.value.reason ? '' : 'Requerido'
+    reason: form.value.reason ? '' : 'Requerido',
+    qty: ''
   }
   return !errores.value.startDate && !errores.value.reason
 }
@@ -60,12 +73,20 @@ const submitRequest = async () => {
 
   sending.value = true
   try {
-    const payload = {
-      type: dialog.value.type === 'PERMIT' ? form.value.subType : dialog.value.type,
-      startDate: form.value.startDate,
-      endDate: form.value.endDate || form.value.startDate,
-      reason: form.value.reason
-    }
+    // Canje: no ocupa fechas, solo cantidad de días. Se manda hoy como fecha
+    // de referencia (para asignar el periodo) y daysQuantity con la cantidad.
+    const hoy = new Date()
+    const p = n => String(n).padStart(2, '0')
+    const hoyStr = `${hoy.getFullYear()}-${p(hoy.getMonth() + 1)}-${p(hoy.getDate())}`
+
+    const payload = dialog.value.type === 'CASH_OUT'
+      ? { type: 'CASH_OUT', startDate: hoyStr, endDate: hoyStr, daysQuantity: Number(form.value.qty), reason: form.value.reason }
+      : {
+          type: dialog.value.type === 'PERMIT' ? form.value.subType : dialog.value.type,
+          startDate: form.value.startDate,
+          endDate: form.value.endDate || form.value.startDate,
+          reason: form.value.reason
+        }
 
     await axios.post('/rh/request-time-off', payload)
 
@@ -83,8 +104,8 @@ const submitRequest = async () => {
 
 const openRequestDialog = (type) => {
   dialog.value.type = type
-  form.value = { startDate: null, endDate: null, reason: '', subType: 'PERMIT_DAY' }
-  errores.value = { startDate: '', reason: '' }
+  form.value = { startDate: null, endDate: null, reason: '', subType: 'PERMIT_DAY', qty: null }
+  errores.value = { startDate: '', reason: '', qty: '' }
   dialog.value.show = true
 }
 
@@ -594,24 +615,41 @@ onMounted(() => loadData())
               </div>
             </div>
 
-            <div class="grid grid-cols-12 gap-4">
-              <div class="col-span-6">
-                <UFormField label="Desde" :error="errores.startDate">
-                  <UInput v-model="form.startDate" type="date" class="w-full" />
-                </UFormField>
+            <!-- Canje: sólo cantidad de días, sin fechas. -->
+            <UFormField
+              v-if="dialog.type === 'CASH_OUT'"
+              label="Cantidad de días a canjear"
+              :error="errores.qty"
+            >
+              <UInput v-model.number="form.qty" type="number" min="0.5" step="0.5" class="w-full" />
+            </UFormField>
+
+            <!-- Vacaciones / Permiso: rango de fechas. -->
+            <template v-else>
+              <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                  <UFormField label="Desde" :error="errores.startDate">
+                    <UInput v-model="form.startDate" type="date" class="w-full" />
+                  </UFormField>
+                </div>
+
+                <div class="col-span-6">
+                  <UFormField label="Hasta">
+                    <UInput
+                      v-model="form.endDate"
+                      type="date"
+                      class="w-full"
+                      :disabled="dialog.type === 'PERMIT'"
+                    />
+                  </UFormField>
+                </div>
               </div>
 
-              <div class="col-span-6">
-                <UFormField label="Hasta">
-                  <UInput
-                    v-model="form.endDate"
-                    type="date"
-                    class="w-full"
-                    :disabled="dialog.type === 'PERMIT'"
-                  />
-                </UFormField>
-              </div>
-            </div>
+              <p v-if="dialog.type === 'VACATION' && form.startDate" class="text-xs text-muted -mt-2">
+                Se descontarán <b class="text-highlighted">{{ diasHabilesPreview }}</b> día(s) hábil(es).
+                Sábados y domingos no cuentan (jornada L-V).
+              </p>
+            </template>
 
             <UFormField label="Motivo" :error="errores.reason">
               <UTextarea v-model="form.reason" :rows="3" class="w-full" />
